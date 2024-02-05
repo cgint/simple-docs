@@ -1,0 +1,7 @@
+# https://cloud.google.com/run
+# https://mostbauer.com
+# https://docs.llamaindex.ai/en/stable/
+https://developers.google.com/google-ads/api/docs/
+https://developers.google.com/shopping-content/guides/quickstart
+# https://developers.facebook.com/docs/
+https://developers.facebook.com/docs/marketing-apis/
