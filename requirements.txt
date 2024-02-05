@@ -1,0 +1,15 @@
+llama_index
+transformers
+torch
+fastembed
+sentence-transformers
+pandas
+requests
+pypdf
+beautifulsoup4
+chromadb
+neo4j
+rank-bm25
+
+aim
+jwt

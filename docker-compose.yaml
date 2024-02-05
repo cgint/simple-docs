@@ -1,0 +1,35 @@
+version: '3'
+services:
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - 8000:8000
+    volumes:
+      - ./data_chroma:/chroma/chroma
+    environment:
+      - POSTGRES_USER=chromadb
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=chromadb
+  neo4j:
+    image: neo4j:latest
+    ports:
+      - 8474:7474
+      - 8687:7687
+    volumes:
+      - ./neo4j_versions/current/data:/data
+      - ./neo4j_versions/current/logs:/logs
+      - ./neo4j_versions/plugins:/plugins
+      - ./neo4j_versions/conf:/var/lib/neo4j/conf
+    environment:
+      - NEO4J_AUTH=none
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_apoc_import_file_use__neo4j__config=true
+#      - NEO4J_dbms_security_procedures_allowlist=*
+#      - NEO4J_dbms_security_procedures_unrestricted=*
+      - NEO4J_PLUGINS=["apoc"]
+  neodash:
+    platform: linux/amd64
+    image: neo4jlabs/neodash:latest
+    ports:
+      - 8005:5005
