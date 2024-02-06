@@ -73,7 +73,7 @@ def get_hybrid_query_engine(service_context, storage_dir) -> RetrieverQueryEngin
     from llama_index.retrievers import BM25Retriever
     retriever_k = 5
     reranker_k = 2
-    doc_sum_index = load_doc_sum_index(storage_dir)
+    doc_sum_index = load_doc_sum_index(service_context, storage_dir)
     print(f"Pushing {len(doc_sum_index.docstore.docs)} from doc_sum_index to BM25Retriever.")
     bm25_retriever = BM25Retriever.from_defaults(docstore=doc_sum_index.docstore, similarity_top_k=retriever_k)
     print(f"Done.")

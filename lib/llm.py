@@ -1,6 +1,8 @@
 import os
 from typing import Any, Dict, Optional
 
+host_ip = os.getenv("HOST_IP", "host.docker.internal")
+
 def get_llm(llm_engine, llm_model, openai_model = None):
     temperature = 0.1
     if llm_engine == "together":
@@ -32,27 +34,28 @@ def get_llm(llm_engine, llm_model, openai_model = None):
         )
     elif llm_engine == "ollama":
         from llama_index.llms import Ollama
-        api_base_url = "http://host.docker.internal:11434"
+        api_base_url = f"http://{host_ip}:11434"
         print(f"About to instanciate LLM {llm_model} on {api_base_url} using Ollama ...")
         return Ollama(
             model=llm_model, 
             base_url=api_base_url, 
             request_timeout=900, 
             temperature=temperature,
+            additional_kwargs={"num_predict": 512}
             #additional_kwargs={"main_gpu": 1} # see https://github.com/jmorganca/ollama/issues/1813#issuecomment-1902682612
         )
     elif llm_engine == "ollama-gpu0":
         # Needs an Ollama-instance starting with this command: "CUDA_VISIBLE_DEVICES=0 OLLAMA_HOST=0.0.0.0:11535 ollama serve"
         from llama_index.llms import Ollama
-        api_base_url = "http://host.docker.internal:11430"
+        api_base_url = f"http://{host_ip}:11430"
         print(f"About to instanciate LLM {llm_model} on {api_base_url} using Ollama-Instance with GPU-ID 0 ...")
-        return Ollama(model=llm_model, base_url=api_base_url, request_timeout=900, temperature=temperature)
+        return Ollama(model=llm_model, base_url=api_base_url, request_timeout=900, temperature=temperature, additional_kwargs={"num_predict": 512})
     elif llm_engine == "ollama-gpu1":
         # Needs an Ollama-instance starting with this command: "CUDA_VISIBLE_DEVICES=0 OLLAMA_HOST=0.0.0.0:11535 ollama serve"
         from llama_index.llms import Ollama
-        api_base_url = "http://host.docker.internal:11431"
+        api_base_url = f"http://{host_ip}:11431"
         print(f"About to instanciate LLM {llm_model} on {api_base_url} using Ollama-Instance with GPU-ID 1 ...")
-        return Ollama(model=llm_model, base_url=api_base_url, request_timeout=900, temperature=temperature)
+        return Ollama(model=llm_model, base_url=api_base_url, request_timeout=900, temperature=temperature, additional_kwargs={"num_predict": 512})
     else:
         raise Exception(f"Unknown llm_engine: {llm_engine}")
     

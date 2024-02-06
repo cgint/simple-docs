@@ -3,10 +3,12 @@ from llama_index import Document, KnowledgeGraphIndex, StorageContext
 from llama_index.graph_stores.neo4j import Neo4jGraphStore
 from neo4j import GraphDatabase
 from llama_index.core.base_query_engine import BaseQueryEngine
+import os
 
+host_ip = os.getenv("HOST_IP", "host.docker.internal")
 user = "neo4j"
 pwd = ""
-uri = "neo4j://host.docker.internal:8687"
+uri = f"neo4j://{host_ip}:8687"
 g_db = "neo4j"
 
 def kg_neo4j_delete_all_nodes():

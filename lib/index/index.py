@@ -1,5 +1,5 @@
 import os
-from lib.index.doc_sum_index import create_doc_summary_index
+from lib.index.doc_sum_index import operate_on_doc_sum_index
 
 from lib.index.html import clean_html_content, get_documents_from_urls_as_mirror, get_documents_from_urls
 from lib.index.helper import cur_simple_date_time_sec
@@ -15,32 +15,31 @@ from typing import List
 import queue
 import threading
 
-documents_remembered = []
-
 def init_consumer_threads(service_context, storage_dir):
-    q_main = queue.Queue(maxsize=100)
+    q_main = queue.Queue(maxsize=1000)
 
-    q_vector = queue.Queue(maxsize=100)
-    q_graph = queue.Queue(maxsize=100)
-    q_term_index = queue.Queue(maxsize=100)
-    q_remember_documents = queue.Queue(maxsize=100)
+    q_vector = queue.Queue(maxsize=1000)
+    q_graph = queue.Queue(maxsize=1000)
+    q_term_index = queue.Queue(maxsize=1000)
+    q_doc_sum = queue.Queue(maxsize=1000)
 
     # Start consuming in parallel
     consumer_threads = []
-    consumer_threads.append(threading.Thread(target=queue_distributor, args=(q_main, [q_vector, q_graph, q_term_index, q_remember_documents])))
+    consumer_threads.append(threading.Thread(target=queue_distributor, args=(q_main, [q_vector, q_graph, q_term_index, q_doc_sum])))
     consumer_threads.append(threading.Thread(target=index_consume_documents_on_vector, args=(service_context, storage_dir, "VectorIndex", q_vector)))
     consumer_threads.append(threading.Thread(target=index_consume_documents_on_graph, args=(service_context, storage_dir, "GraphIndex", q_graph)))
     consumer_threads.append(threading.Thread(target=index_consume_documents_on_term_index, args=("TermIndex", q_term_index)))
-    consumer_threads.append(threading.Thread(target=index_consume_remember_documents, args=("RememberDocs", q_remember_documents)))
+    consumer_threads.append(threading.Thread(target=index_consume_documents_on_doc_sum, args=(service_context, storage_dir, "DocSumIndex", q_doc_sum)))
     for t in consumer_threads:
         t.start()
     
     return q_main, consumer_threads
 
-def register_main_queue_push(q, doc: Document):
+def register_main_queue_push(q_main: queue.Queue, doc: Document):
     doc_id = doc.doc_id if doc else "None"
-    print(f"Pushing document '{doc_id}' to main_queue ...")
-    q.put(doc)
+    q_size = q_main.qsize()
+    print(f"Pushing document '{doc_id}' to main_queue (size={q_size}) ...")
+    q_main.put(doc)
 
 def async_index(service_context, storage_dir, index_dir, index_dir_done):
     print("Deleting neo4j nodes ...")
@@ -48,22 +47,19 @@ def async_index(service_context, storage_dir, index_dir, index_dir_done):
     q_main, consumer_threads = init_consumer_threads(service_context, storage_dir)
     
     # Start producing
-    index_produce_documents(index_dir, index_dir_done, lambda doc: register_main_queue_push(q_main, doc))
-
-    # Tell consumer to stop and wait for it to finish
-    q_main.put(None)
+    try:
+        index_produce_documents(index_dir, index_dir_done, lambda doc: register_main_queue_push(q_main, doc))
+    finally:
+        # Tell consumer to stop and wait for it to finish
+        print("Stopping consumers ...")
+        q_main.put(None)
 
     # count docs per term
     write_term_references_to_file()
     count_terms_per_document()
 
-    create_doc_summary_index(documents_remembered, service_context, storage_dir)
-    
     for t in consumer_threads:
         t.join()
-
-    # Apply term to doc on graph index
-    #operate_on_graph_index(service_context, vector_storage_dir, apply_term_to_doc_on_graph_index)
 
 def apply_term_to_doc_on_graph_index(idx: KnowledgeGraphIndex):
     print(f"Applying term to doc on graph index ...")
@@ -88,6 +84,10 @@ def index_consume_documents_on_vector(service_context, vector_storage_dir, log_n
     processor = lambda idx: index_consume_documents(log_name, q, lambda doc: idx.refresh_ref_docs([doc]))
     operate_on_vector_index(service_context, vector_storage_dir, processor)
 
+def index_consume_documents_on_doc_sum(service_context, storage_dir, log_name, q):
+    processor = lambda idx: index_consume_documents(log_name, q, lambda doc: idx.refresh_ref_docs([doc]))
+    operate_on_doc_sum_index(service_context, storage_dir, processor)
+
 def index_consume_documents_on_graph(service_context, graph_storage_dir, log_name, q):
     processor = lambda idx: index_consume_documents(log_name, q, lambda doc: idx_update_doc_on_graph(idx, doc))
     operate_on_graph_index(service_context, graph_storage_dir, processor)
@@ -108,7 +108,8 @@ def index_consume_documents(log_name, q, process=lambda: None):
         if doc is None:
             q.task_done()
             break  # Exit if None is received
-        print(f"{log_name} - Indexing document #{counter} with id {doc.doc_id} ...")
+        q_size = q.qsize()
+        print(f" {log_name} - q(size={q_size}) - Indexing document #{counter} with id {doc.doc_id} ...")
         process(doc)
         q.task_done()
 

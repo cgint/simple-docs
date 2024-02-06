@@ -9,13 +9,15 @@ import chromadb
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.retrievers import BaseRetriever
 
-from lib.llm import get_callback_manager
+import os
+
+host_ip = os.getenv("HOST_IP", "host.docker.internal")
 
 def load_vector_index_storage_context(vector_storage_dir: str) -> StorageContext:
     return StorageContext.from_defaults(persist_dir=vector_storage_dir)
 
 def load_vector_index_chroma_storage_context(collection: str) -> (ChromaVectorStore, StorageContext):
-    remote_db = chromadb.HttpClient(host="host.docker.internal")
+    remote_db = chromadb.HttpClient(host=host_ip)
     chroma_collection = remote_db.get_or_create_collection(collection)
     vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
