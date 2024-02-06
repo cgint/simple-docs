@@ -10,7 +10,7 @@ mkdir -p data/html_dl_cache
 mkdir -p data/term_data
 
 # Build the Docker image and run if successful
-dbuild.sh -t $IMAGE_NAME . && time docker run -it --rm \
+docker build -t $IMAGE_NAME . && time docker run -it --rm \
     --name "simple_docs" \
     --gpus all \
     -v "./data:/data" \
