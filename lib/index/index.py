@@ -15,7 +15,7 @@ from typing import List
 import queue
 import threading
 
-def init_consumer_threads(service_context, storage_dir):
+def init_consumer_threads(service_context, doc_sum_index_dir, collection, g_db):
     q_main = queue.Queue(maxsize=1000)
 
     q_vector = queue.Queue(maxsize=1000)
@@ -26,10 +26,10 @@ def init_consumer_threads(service_context, storage_dir):
     # Start consuming in parallel
     consumer_threads = []
     consumer_threads.append(threading.Thread(target=queue_distributor, args=(q_main, [q_vector, q_graph, q_term_index, q_doc_sum])))
-    consumer_threads.append(threading.Thread(target=index_consume_documents_on_vector, args=(service_context, storage_dir, "VectorIndex", q_vector)))
-    consumer_threads.append(threading.Thread(target=index_consume_documents_on_graph, args=(service_context, storage_dir, "GraphIndex", q_graph)))
+    consumer_threads.append(threading.Thread(target=index_consume_documents_on_vector, args=(service_context, collection, "VectorIndex", q_vector)))
+    consumer_threads.append(threading.Thread(target=index_consume_documents_on_graph, args=(service_context, g_db, "GraphIndex", q_graph)))
     consumer_threads.append(threading.Thread(target=index_consume_documents_on_term_index, args=("TermIndex", q_term_index)))
-    consumer_threads.append(threading.Thread(target=index_consume_documents_on_doc_sum, args=(service_context, storage_dir, "DocSumIndex", q_doc_sum)))
+    consumer_threads.append(threading.Thread(target=index_consume_documents_on_doc_sum, args=(service_context, doc_sum_index_dir, "DocSumIndex", q_doc_sum)))
     for t in consumer_threads:
         t.start()
     
@@ -41,10 +41,10 @@ def register_main_queue_push(q_main: queue.Queue, doc: Document):
     print(f"Pushing document '{doc_id}' to main_queue (size={q_size}) ...")
     q_main.put(doc)
 
-def async_index(service_context, storage_dir, index_dir, index_dir_done):
-    print("Deleting neo4j nodes ...")
-    kg_neo4j_delete_all_nodes()
-    q_main, consumer_threads = init_consumer_threads(service_context, storage_dir)
+def async_index(service_context, doc_sum_index_dir, collection, g_db, index_dir, index_dir_done):
+    # print("Deleting neo4j nodes ...")
+    # kg_neo4j_delete_all_nodes()
+    q_main, consumer_threads = init_consumer_threads(service_context, doc_sum_index_dir, collection, g_db)
     
     # Start producing
     try:
@@ -80,17 +80,17 @@ def index_consume_remember_documents(log_name, q):
     global documents_remembered
     index_consume_documents(log_name, q, documents_remembered.append)
 
-def index_consume_documents_on_vector(service_context, vector_storage_dir, log_name, q):
+def index_consume_documents_on_vector(service_context, collection, log_name, q):
     processor = lambda idx: index_consume_documents(log_name, q, lambda doc: idx.refresh_ref_docs([doc]))
-    operate_on_vector_index(service_context, vector_storage_dir, processor)
+    operate_on_vector_index(service_context, collection, processor)
 
 def index_consume_documents_on_doc_sum(service_context, storage_dir, log_name, q):
     processor = lambda idx: index_consume_documents(log_name, q, lambda doc: idx.refresh_ref_docs([doc]))
     operate_on_doc_sum_index(service_context, storage_dir, processor)
 
-def index_consume_documents_on_graph(service_context, graph_storage_dir, log_name, q):
+def index_consume_documents_on_graph(service_context, collection, log_name, q):
     processor = lambda idx: index_consume_documents(log_name, q, lambda doc: idx_update_doc_on_graph(idx, doc))
-    operate_on_graph_index(service_context, graph_storage_dir, processor)
+    operate_on_graph_index(service_context, collection, processor)
 
 def idx_update_doc_on_graph(idx: KnowledgeGraphIndex, doc: Document):
     terms = terms_from_txt(doc.text)
@@ -113,14 +113,8 @@ def index_consume_documents(log_name, q, process=lambda: None):
         process(doc)
         q.task_done()
 
-def index(service_context, vector_storage_dir, index_dir, index_dir_done):
-    async_index(service_context, vector_storage_dir, index_dir, index_dir_done)
-
-def index_sync(service_context, vector_storage_dir, index_dir, index_dir_done):
-    documents = []
-    index_produce_documents(index_dir, index_dir_done, lambda doc: documents.append(doc))
-    print(f"Indexing {len(documents)} documents ...")
-    add_to_or_update_in_vector(service_context, vector_storage_dir, documents)
+def index(service_context, doc_sum_index_dir, collection, g_db, index_dir, index_dir_done):
+    async_index(service_context, doc_sum_index_dir, collection, g_db, index_dir, index_dir_done)
 
 def index_produce_documents(index_dir, index_dir_done, producer_sink=lambda: Document):
     print(f"Indexing documents from {index_dir} ...")
@@ -168,8 +162,9 @@ def index_produce_documents(index_dir, index_dir_done, producer_sink=lambda: Doc
         if file == "mirror.txt":
             target_file_name = f"mirror_{run_index_time}.txt"
         to_path = os.path.join(index_dir_done, target_file_name)
-        print(f"Moving {file_full_path} to {to_path} ...")
-        os.rename(file_full_path, to_path)
+        print(f" !!! NOT !!! - Moving {file_full_path} to {to_path} ... to preserve for the next run.")
+        #print(f"Moving {file_full_path} to {to_path} ...")
+        #os.rename(file_full_path, to_path)
 
 
 def read_relevant_lines(file_path: str) -> List[str]:

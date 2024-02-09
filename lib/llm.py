@@ -32,53 +32,53 @@ def get_llm(llm_engine, llm_model, openai_model = None):
             api_key=os.environ["OPENAI_API_KEY"],
             temperature=temperature
         )
-    elif llm_engine == "ollama":
+    elif llm_engine.startswith("ollama"):
         from llama_index.llms import Ollama
-        api_base_url = f"http://{host_ip}:11434"
-        print(f"About to instanciate LLM {llm_model} on {api_base_url} using Ollama ...")
+        api_base_url = f"http://{host_ip}:{get_port_for_ollama_variant(llm_engine)}"
+        print(f"About to instanciate LLM {llm_model} on {api_base_url} using Ollama-Instance {llm_engine} ...")
         return Ollama(
             model=llm_model, 
             base_url=api_base_url, 
             request_timeout=900, 
             temperature=temperature,
             additional_kwargs={"num_predict": 512}
-            #additional_kwargs={"main_gpu": 1} # see https://github.com/jmorganca/ollama/issues/1813#issuecomment-1902682612
         )
-    elif llm_engine == "ollama-gpu0":
-        # Needs an Ollama-instance starting with this command: "CUDA_VISIBLE_DEVICES=0 OLLAMA_HOST=0.0.0.0:11535 ollama serve"
-        from llama_index.llms import Ollama
-        api_base_url = f"http://{host_ip}:11430"
-        print(f"About to instanciate LLM {llm_model} on {api_base_url} using Ollama-Instance with GPU-ID 0 ...")
-        return Ollama(model=llm_model, base_url=api_base_url, request_timeout=900, temperature=temperature, additional_kwargs={"num_predict": 512})
-    elif llm_engine == "ollama-gpu1":
-        # Needs an Ollama-instance starting with this command: "CUDA_VISIBLE_DEVICES=0 OLLAMA_HOST=0.0.0.0:11535 ollama serve"
-        from llama_index.llms import Ollama
-        api_base_url = f"http://{host_ip}:11431"
-        print(f"About to instanciate LLM {llm_model} on {api_base_url} using Ollama-Instance with GPU-ID 1 ...")
-        return Ollama(model=llm_model, base_url=api_base_url, request_timeout=900, temperature=temperature, additional_kwargs={"num_predict": 512})
     else:
         raise Exception(f"Unknown llm_engine: {llm_engine}")
     
-
+def get_port_for_ollama_variant(llm_engine):
+    if llm_engine == "ollama-gpu0":
+        return 11430
+    elif llm_engine == "ollama-gpu1":
+        return 11431
+    elif llm_engine == "ollama":
+        return 11434
+    else:
+        raise Exception(f"Unknown llm_engine: {llm_engine}. Known are 'ollama', 'ollama-gpu0', 'ollama-gpu1'")
+    
+def get_embed_model(embed_engine: str, embed_model_name: str):
+    if embed_engine == "fastembed":
+        from llama_index.embeddings.fastembed import FastEmbedEmbedding
+        embed_cache_dir = "/data/fastembed_cache/"
+        print(f"About to instanciate Embed Model {embed_model_name} using FastEmbedEmbedding ...")
+        return FastEmbedEmbedding(model_name=embed_model_name, cache_dir=embed_cache_dir)
+    elif embed_engine.startswith("ollama"):
+        api_base_url = f"http://{host_ip}:{get_port_for_ollama_variant(embed_engine)}"
+        from llama_index.embeddings.ollama_embedding import OllamaEmbedding
+        print(f"About to instanciate Embed Model {embed_model_name} using OllamaEmbedding ...")
+        return OllamaEmbedding(model_name=embed_model_name, base_url=api_base_url)
+    else:
+        raise Exception(f"Unknown embed_model_name: {embed_model_name}")
 
 communication_log_csv = "/data/llm_responses.csv"
 def get_csv_callback_handler():
     from lib.callbacks.simple_dict_collector import SimpleDictStoreHandler
     return SimpleDictStoreHandler(communication_log_csv)
 
-aim_callback = None
 def get_aim_callback(aim_experiment_name, aim_path, aim_run_params: Optional[Dict[str, Any]] = None):
-    global aim_callback
     from llama_index.callbacks import AimCallback
-    if aim_callback is None:
-        aim_callback = AimCallback(experiment_name=aim_experiment_name, repo=aim_path, run_params=aim_run_params)
-    return aim_callback
+    return AimCallback(experiment_name=aim_experiment_name, repo=aim_path, run_params=aim_run_params)
 
-callback_manager = None
 def get_callback_manager(aim_path, aim_run_params: Optional[Dict[str, Any]] = None):
-    global callback_manager
-    if callback_manager is None:
-        from llama_index.callbacks.base import CallbackManager
-        callback_manager = CallbackManager(handlers=[get_csv_callback_handler(), get_aim_callback(aim_path, aim_run_params)])
-    return callback_manager
-    
+    from llama_index.callbacks.base import CallbackManager
+    return CallbackManager(handlers=[get_csv_callback_handler(), get_aim_callback(aim_path, aim_run_params)])
