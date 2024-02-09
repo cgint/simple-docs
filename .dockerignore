@@ -1,5 +1,5 @@
 data*
 venv
 neo4j_versions
-at_*.py
+at_*
 */__pycache__
