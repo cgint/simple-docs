@@ -1,4 +1,6 @@
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 import os
+from time import sleep
 from lib.index.doc_sum_index import operate_on_doc_sum_index
 
 from lib.index.html import clean_html_content, get_documents_from_urls_as_mirror, get_documents_from_urls
@@ -9,23 +11,27 @@ from lib.index.terms.terms import terms_from_txt
 from lib.index.web import create_simple_identifier_from_url
 from lib.index.terms.kg_num_term_neo4j import kg_neo4j_delete_all_nodes, operate_on_graph_index
 
-from lib.vector_chroma import add_to_or_update_in_vector, operate_on_vector_index
+from lib.vector_chroma import delete_chroma_collection, operate_on_vector_index
 from llama_index import Document, KnowledgeGraphIndex
 from typing import List
 import queue
 import threading
 
-def init_consumer_threads(service_context, doc_sum_index_dir, collection, g_db):
-    q_main = queue.Queue(maxsize=1000)
+main_queue_size = 100
+worker_queue_sizes = 100
+RETRY_ATTEMPTS_MAX = 3
 
-    q_vector = queue.Queue(maxsize=1000)
-    q_graph = queue.Queue(maxsize=1000)
-    q_term_index = queue.Queue(maxsize=1000)
-    q_doc_sum = queue.Queue(maxsize=1000)
+def init_consumer_threads(service_context, doc_sum_index_dir, collection, g_db):
+    q_main = queue.Queue(maxsize=main_queue_size)
+
+    q_vector = queue.Queue(maxsize=worker_queue_sizes)
+    q_graph = queue.Queue(maxsize=worker_queue_sizes)
+    q_term_index = queue.Queue(maxsize=worker_queue_sizes)
+    q_doc_sum = queue.Queue(maxsize=worker_queue_sizes)
 
     # Start consuming in parallel
     consumer_threads = []
-    consumer_threads.append(threading.Thread(target=queue_distributor, args=(q_main, [q_vector, q_graph, q_term_index, q_doc_sum])))
+    consumer_threads.append(threading.Thread(target=queue_fan_out, args=(q_main, [q_vector, q_graph, q_term_index, q_doc_sum])))
     consumer_threads.append(threading.Thread(target=index_consume_documents_on_vector, args=(service_context, collection, "VectorIndex", q_vector)))
     consumer_threads.append(threading.Thread(target=index_consume_documents_on_graph, args=(service_context, g_db, "GraphIndex", q_graph)))
     consumer_threads.append(threading.Thread(target=index_consume_documents_on_term_index, args=("TermIndex", q_term_index)))
@@ -36,14 +42,17 @@ def init_consumer_threads(service_context, doc_sum_index_dir, collection, g_db):
     return q_main, consumer_threads
 
 def register_main_queue_push(q_main: queue.Queue, doc: Document):
-    doc_id = doc.doc_id if doc else "None"
-    q_size = q_main.qsize()
-    print(f"Pushing document '{doc_id}' to main_queue (size={q_size}) ...")
+    # doc_id = doc.doc_id if doc else "None"
+    # q_size = q_main.qsize()
+    # print(f"Pushing document '{doc_id}' to main_queue (size={q_size}) ...")
     q_main.put(doc)
 
 def async_index(service_context, doc_sum_index_dir, collection, g_db, index_dir, index_dir_done):
     # print("Deleting neo4j nodes ...")
     # kg_neo4j_delete_all_nodes()
+    # print("Deleting chroma entries ...")
+    # delete_chroma_collection(collection)
+    
     q_main, consumer_threads = init_consumer_threads(service_context, doc_sum_index_dir, collection, g_db)
     
     # Start producing
@@ -61,13 +70,7 @@ def async_index(service_context, doc_sum_index_dir, collection, g_db, index_dir,
     for t in consumer_threads:
         t.join()
 
-def apply_term_to_doc_on_graph_index(idx: KnowledgeGraphIndex):
-    print(f"Applying term to doc on graph index ...")
-    for term, doc_count in get_term_to_doc_items():
-        for doc_id in doc_count.keys():
-            idx.upsert_triplet((term, "in", doc_id))
-
-def queue_distributor(q, consumers):
+def queue_fan_out(q, consumers):
     while True:
         doc = q.get()
         for c in consumers:
@@ -81,12 +84,56 @@ def index_consume_remember_documents(log_name, q):
     index_consume_documents(log_name, q, documents_remembered.append)
 
 def index_consume_documents_on_vector(service_context, collection, log_name, q):
-    processor = lambda idx: index_consume_documents(log_name, q, lambda doc: idx.refresh_ref_docs([doc]))
+    processor = lambda idx: index_consume_documents(log_name, q, lambda doc: try_refresh_ref_docs_retry_max(RETRY_ATTEMPTS_MAX, idx, doc))
     operate_on_vector_index(service_context, collection, processor)
 
 def index_consume_documents_on_doc_sum(service_context, storage_dir, log_name, q):
-    processor = lambda idx: index_consume_documents(log_name, q, lambda doc: idx.refresh_ref_docs([doc]))
+    processor = lambda idx: index_consume_documents_threading_workers(log_name, q, lambda doc: try_refresh_ref_docs_retry_max(RETRY_ATTEMPTS_MAX, idx, doc), 3)
     operate_on_doc_sum_index(service_context, storage_dir, processor)
+
+def try_refresh_ref_docs_retry_max(attempts , idx, doc):
+    for i in range(attempts):
+        try:
+            idx.refresh_ref_docs([doc])
+            break
+        except Exception as e:
+            if i < 2:
+                print(f" ERROR-RETRYING: Error refreshing ref_docs after a bit. The error: {e}")
+                sleep(0.25)
+            else:
+                raise e
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import queue
+import threading
+
+def index_consume_documents_threading_workers(log_name, q, process=lambda x: None, max_threads=1, max_queued_tasks=100):
+    counter = 0
+    futures = set()
+
+    with ThreadPoolExecutor(max_workers=max_threads) as executor:
+        while True:
+            counter += 1
+            doc = q.get()
+            if doc is None:
+                q.task_done()
+                break  # Exit if None is received
+
+            # Check if we need to wait for some tasks to complete
+            if len(futures) >= max_queued_tasks:
+                # Wait for at least one task to complete
+                _, futures = wait(futures, return_when=FIRST_COMPLETED)
+
+            # Submit new task
+            futures.add(executor.submit(process, doc))
+            print(f" {log_name} - q(size={q.qsize()}) - Indexing document #{counter} with id {doc.doc_id} ...")
+            q.task_done()
+
+        # Wait for all submitted tasks to complete
+        for future in as_completed(futures):
+            future.result()  # This also helps in raising exceptions if any occurred
+
+        q.join()  # Wait for all tasks to be done
 
 def index_consume_documents_on_graph(service_context, collection, log_name, q):
     processor = lambda idx: index_consume_documents(log_name, q, lambda doc: idx_update_doc_on_graph(idx, doc))
@@ -108,8 +155,7 @@ def index_consume_documents(log_name, q, process=lambda: None):
         if doc is None:
             q.task_done()
             break  # Exit if None is received
-        q_size = q.qsize()
-        print(f" {log_name} - q(size={q_size}) - Indexing document #{counter} with id {doc.doc_id} ...")
+        print(f" {log_name} - q(size={q.qsize()}) - Indexing document #{counter} with id {doc.doc_id} ...")
         process(doc)
         q.task_done()
 
@@ -133,10 +179,10 @@ def index_produce_documents(index_dir, index_dir_done, producer_sink=lambda: Doc
             get_documents_from_urls(read_relevant_lines(file_full_path), producer_sink)
         elif file == "mirror.txt":
             for url in read_relevant_lines(file_full_path):
-                simple_url = create_simple_identifier_from_url(url)
-                mirror_dir = f"/data/index_inbox/mirror/{simple_url}/{run_index_time}/"
-                os.makedirs(mirror_dir, exist_ok=True)
-                get_documents_from_urls_as_mirror(mirror_dir, url, producer_sink)
+                # simple_url = create_simple_identifier_from_url(url)
+                # mirror_dir = f"/data/index_inbox/mirror/{simple_url}/{run_index_time}/"
+                # os.makedirs(mirror_dir, exist_ok=True)
+                get_documents_from_urls_as_mirror(None, url, producer_sink)
         elif file.endswith(".txt"):
             with open(file_full_path, "r") as f:
                 producer_sink(Document(text=f.read(), metadata={"source_id": file, "source_type": "txt"}))

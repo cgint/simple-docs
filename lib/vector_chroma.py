@@ -12,9 +12,26 @@ import os
 
 host_ip = os.getenv("HOST_IP", "host.docker.internal")
 
-def load_vector_index_chroma_storage_context(collection: str) -> (ChromaVectorStore, StorageContext):
+def chunker(seq, size):
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+
+def get_or_create_chroma_collection(collection: str) -> chromadb.Collection:
     remote_db = chromadb.HttpClient(host=host_ip)
-    chroma_collection = remote_db.get_or_create_collection(collection)
+    return remote_db.get_or_create_collection(collection)
+
+def delete_chroma_collection(collection: str) -> None:
+    chroma_collection = get_or_create_chroma_collection(collection)
+    doc_ids = chroma_collection.get()["ids"]
+    print(f"Deleting {len(doc_ids)} documents from chroma_collection ...")
+    batch_size = 20000
+    for i, batch in enumerate(chunker(doc_ids, batch_size)):
+        print(f"Deleting batch {i+1}/{len(batch)} ...")
+        chroma_collection.delete(ids=batch)
+    print(f"Collection.count()={chroma_collection.count()} ...")
+
+
+def load_vector_index_chroma_storage_context(collection: str) -> tuple[ChromaVectorStore, StorageContext]:
+    chroma_collection = get_or_create_chroma_collection(collection)
     vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
     return vector_store, storage_context

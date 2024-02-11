@@ -19,7 +19,7 @@ services:
       - ./neo4j_versions/current/data:/data
       - ./neo4j_versions/current/logs:/logs
       - ./neo4j_versions/plugins:/plugins
-      - ./neo4j_versions/conf:/var/lib/neo4j/conf
+      #- ./neo4j_versions/conf:/var/lib/neo4j/conf
     environment:
       - NEO4J_AUTH=none
       - NEO4J_apoc_export_file_enabled=true

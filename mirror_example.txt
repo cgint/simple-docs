@@ -4,4 +4,4 @@
 https://developers.google.com/google-ads/api/docs/
 https://developers.google.com/shopping-content/guides/quickstart
 # https://developers.facebook.com/docs/
-https://developers.facebook.com/docs/marketing-apis/
+https://developers.facebook.com/docs/marketing-apis

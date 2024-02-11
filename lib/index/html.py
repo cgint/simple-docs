@@ -44,24 +44,24 @@ def get_documents_from_urls_as_mirror(file_prefix: str, mirror_url: str, produce
 
 def get_documents_from_urls_as_mirror_rec(file_prefix: str, mirror_base: str, current_url: str, already_seen_urls: List[str], producer_sink=lambda: Document) -> List[Document]:
     if not current_url.startswith("http"):
-        print(f"Not starting with 'http' {current_url} ...")
+        # print(f"Not starting with 'http' {current_url} ...")
         return
     if current_url in already_seen_urls:
-        print(f"Skipping {current_url} as already seen ...")
+        # print(f"Skipping {current_url} as already seen ...")
         return
-    print(f"Indexing {current_url} ...")
+    # print(f"HTML Indexing {current_url} ...")
     already_seen_urls.append(current_url)
     content = get_plain_content_from(current_url)
     simplified_url = create_simple_identifier_from_url(current_url.replace(".html", ""))
-    with open(f"{file_prefix}{simplified_url}.html", "w") as f:
-        f.write(content)
+    if file_prefix is not None:
+        with open(f"{file_prefix}{simplified_url}.html", "w") as f:
+            f.write(content)
     producer_sink(create_doc_from_plain_html_content(current_url, content, mirror_base))  
     contained_urls = get_urls_from_html_content(content)
-    print(f"  -> Found {len(contained_urls)} sub-urls in {current_url}.")
-    contained_urls_full_path = [urljoin(current_url, potential_sub_url) for potential_sub_url in contained_urls]
-    contained_urls_full_path_no_hash = [url.split("#")[0] for url in contained_urls_full_path]
-    contained_urls_not_already_seen = [potential_sub_url for potential_sub_url in contained_urls_full_path_no_hash if potential_sub_url not in already_seen_urls]
-    sub_urls_to_index = [potential_sub_url for potential_sub_url in contained_urls_not_already_seen if potential_sub_url.startswith(current_url)]
-    for sub_url in sub_urls_to_index:
+    urls_full_path_no_hash = [urljoin(current_url, potential_sub_url.split("#")[0]) for potential_sub_url in contained_urls]
+    urls_is_sub_page = [potential_sub_url for potential_sub_url in urls_full_path_no_hash if potential_sub_url.startswith(mirror_base)]
+    sub_urls_unseen = [potential_sub_url for potential_sub_url in urls_is_sub_page if potential_sub_url not in already_seen_urls]
+    # print(f"  -> Found {len(contained_urls)} urls, {len(urls_is_sub_page)} sub pages and {len(sub_urls_unseen)} unseen in {current_url}.")
+    for sub_url in sub_urls_unseen:
         get_documents_from_urls_as_mirror_rec(file_prefix, mirror_base, sub_url, already_seen_urls, producer_sink)
 

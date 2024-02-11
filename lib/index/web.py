@@ -8,7 +8,8 @@ html_dl_cache_dir = "/data/html_dl_cache"
 ignore_html_dl_cache = os.environ.get("IGNORE_HTML_DL_CACHE", "false").lower() == "true"
 
 request_headers = {
-  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
+  'User-Agent': 'private playground script to help devs understand resources better', # Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36
+  'Accept': '*/*',
 }
 
 def get_cache_file_from_url(url: str) -> str:
@@ -25,14 +26,18 @@ def get_plain_content_from_url_or_cache(url: str) -> str:
     os.makedirs(cache_dir, exist_ok=True)
 
     if not ignore_html_dl_cache and os.path.exists(cache_file):
-        print(f"Using cached content from {cache_file} ...")
+        print(f" --> FETCHING URL: {url} === === === === === FROM C A C H E ...")
         with open(cache_file, "r") as f:
             return f.read()
-    url_text = requests.get(url, headers=request_headers).text
-    # always write to cache - so it can be used next time when not ignoring cache
-    with open(cache_file, "w") as f:
-        f.write(url_text)
-    return url_text
+    print(f" --> FETCHING URL: {url} === === === === === FROM W E B ...")
+    response = requests.get(url, headers=request_headers)
+    # always write to cache on 200 OK - so it can be used next time when not ignoring cache
+    if response.status_code == 200:
+        with open(cache_file, "w") as f:
+            f.write(response.text)
+    else:
+        print(f" !!##!! Skipping writing to cache as status code for {url} was {response.status_code} !!##!! ")    
+    return response.text
 
 def get_plain_content_from(url: str) -> str:
     return get_plain_content_from_url_or_cache(url)

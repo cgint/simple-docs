@@ -13,3 +13,5 @@ rank-bm25
 
 aim
 jwt
+guidance
+openai

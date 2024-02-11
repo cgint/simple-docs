@@ -19,12 +19,17 @@ class HybridRetriever(BaseRetriever):
     def _retrieve(self, query, **kwargs):
 
         def retrieve_parallel(retriever: BaseRetriever, query, **kwargs):
-            start_time = time.time()
-            result = retriever.retrieve(query, **kwargs)
-            end_time = time.time()
-            duration_rounded = round(end_time - start_time, 2)
-            size_of_nodes_contents = sum([len(n.node.text) for n in result])
-            # print(f"Retrieved {len(result)} nodes (size={size_of_nodes_contents}) from {retriever.__class__} in {duration_rounded} seconds.")
+            try:
+                start_time = time.time()
+                print(f"Retrieving {retriever.__class__} ...")
+                result = retriever.retrieve(query, **kwargs)
+                end_time = time.time()
+                duration_rounded = round(end_time - start_time, 2)
+                size_of_nodes_contents = sum([len(n.node.text) for n in result])
+                print(f"Retrieved {len(result)} nodes (size={size_of_nodes_contents}) from {retriever.__class__} in {duration_rounded} seconds.")
+            except Exception as e:
+                print(f"Error retrieving from {retriever.__class__}: {e}")
+                result = []
             return result
 
         def retrieve_in_parallel(retrievers, query, **kwargs):
@@ -105,7 +110,8 @@ class SimpleCharacterSumCutoff(BaseNodePostprocessor):
         query_bundle: Optional[QueryBundle] = None,
     ) -> List[NodeWithScore]:
         return character_sum_cutoff(nodes, self.top_n)
-DEFAULT_SKIP_WORDS = ["the", "and", "or", "of", "in", "to", "for", "on", "with", "by", "from", "at", "as", "a", "an", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "but", "not", "no", "nor", "so", "if", "when", "where", "which", "what", "who", "whom", "whose", "why", "how", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them", "my", "your", "his", "its", "our", "their", "mine", "yours", "hers", "ours", "theirs", "myself", "yourself", "himself", "herself", "itself", "ourselves", "yourselves", "themselves", "this", "that", "these", "those", "here", "there", "this", "that", "these", "those", "here", "there", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "but", "not", "no", "nor", "so", "if", "when", "where", "which", "what", "who", "whom", "whose", "why", "how", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them", "my", "your", "his", "its", "our", "their", "mine", "yours", "hers", "ours", "theirs", "myself", "yourself", "himself", "herself", "itself", "ourselves", "yourselves", "themselves", "this", "that", "these", "those", "here", "there", "that", "these", "those"]
+
+DEFAULT_SKIP_WORDS = ["!", "?", ",", "the", "and", "or", "of", "in", "to", "for", "on", "with", "by", "from", "at", "as", "a", "an", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "but", "not", "no", "nor", "so", "if", "when", "where", "which", "what", "who", "whom", "whose", "why", "how", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them", "my", "your", "his", "its", "our", "their", "mine", "yours", "hers", "ours", "theirs", "myself", "yourself", "himself", "herself", "itself", "ourselves", "yourselves", "themselves", "this", "that", "these", "those", "here", "there", "this", "that", "these", "those", "here", "there", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "but", "not", "no", "nor", "so", "if", "when", "where", "which", "what", "who", "whom", "whose", "why", "how", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them", "my", "your", "his", "its", "our", "their", "mine", "yours", "hers", "ours", "theirs", "myself", "yourself", "himself", "herself", "itself", "ourselves", "yourselves", "themselves", "this", "that", "these", "those", "here", "there", "that", "these", "those"]
 class QueryWordmatchReranker(BaseNodePostprocessor):
     """Reranks nodes based on the number of query words that are found in the node's text."""
     skip_words: List[str]
@@ -123,9 +129,13 @@ class QueryWordmatchReranker(BaseNodePostprocessor):
         The words in the node text are iterated so the score is higher when a word is found more often in the node text.
         """
         if query_bundle is not None and query_bundle.query_str is not None and query_bundle.query_str != "":
-            query_str_lower_words = [word for word in query_bundle.query_str.split() if word.lower() not in self.skip_words]
+            query_str_lower_words = [word.lower() for word in query_bundle.query_str.split() if word.lower() not in self.skip_words]
+            print(f"QueryWordmatchReranker: Checking for words in TextNodes ... {query_str_lower_words}")
             for n in nodes:
-                n.score = len([word for word in n.node.text.lower().split() if word in query_str_lower_words])
+                node_text_lower = n.node.text.lower()
+                word_intersect_sum = len([word for word in node_text_lower.split() if word in query_str_lower_words])
+                word_overlap       = len([word for word in query_str_lower_words if word in node_text_lower])
+                n.score = word_overlap * word_intersect_sum
             nodes.sort(key=lambda x: x.score, reverse=True)
         return nodes
 
@@ -140,6 +150,7 @@ def get_hybrid_query_engine(service_context, query_engine_options, doc_sum_index
         print("Creating new hybrid query engine ...")
         from llama_index.postprocessor import SentenceTransformerRerank
         from llama_index.retrievers import BM25Retriever
+        from llama_index.response_synthesizers import ResponseMode
         retriever_k = int(query_engine_options["retriever_k"])
         if "bm25" in variant or "docsum" in variant:
             doc_sum_index = load_doc_sum_index(service_context, doc_sum_index_dir)
@@ -198,10 +209,31 @@ def get_hybrid_query_engine(service_context, query_engine_options, doc_sum_index
                     SentenceTransformerRerank(top_n=reranker_k, model=query_engine_options["reranker_model"]), 
                     PrintingPostProcessor(f"after {info_k}", True)
                 ]
-        cached_hybrid_retriever_engine[engine_cache_key] = RetrieverQueryEngine.from_args(
+        cached_hybrid_retriever_engine[engine_cache_key] = wrap_in_sub_question_engine(RetrieverQueryEngine.from_args(
             retriever=HybridRetriever(retrievers),
             node_postprocessors=post_processors,
-            service_context=service_context,
-        )
+            service_context=service_context
+        ), service_context)
     return cached_hybrid_retriever_engine[engine_cache_key]
-        
+
+def wrap_in_sub_question_engine(query_engine: RetrieverQueryEngine, service_context) -> RetrieverQueryEngine:
+    """Wraps the given query engine in a sub question engine."""
+    from llama_index.query_engine import SubQuestionQueryEngine
+    from llama_index.tools import QueryEngineTool, ToolMetadata
+    from llama_index.question_gen.guidance_generator import GuidanceQuestionGenerator
+    from guidance.models import OpenAI
+    return SubQuestionQueryEngine.from_defaults(
+        service_context=service_context,
+        question_gen= GuidanceQuestionGenerator.from_defaults(guidance_llm=OpenAI(model="gpt-3.5-turbo")),
+        query_engine_tools=[
+            QueryEngineTool(
+                query_engine=query_engine,
+                metadata=ToolMetadata(
+                    name="hybrid_query_engine",
+                    description=(
+                        "Provides information about everything the user might ask."
+                    )
+                )
+            )
+        ]
+    )

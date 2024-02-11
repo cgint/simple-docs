@@ -10,12 +10,19 @@ user = "neo4j"
 pwd = ""
 uri = f"neo4j://{host_ip}:8687"
 g_db = "neo4j"
+delete_batch_size = 10000
+delete_query = "MATCH (n) WITH n LIMIT $batchSize DETACH DELETE n"
 
 def kg_neo4j_delete_all_nodes():
     with GraphDatabase.driver(uri=uri, auth=(user, pwd)).session(database=g_db) as session:
-        session.execute_write(lambda tx: tx.run("MATCH (n) DETACH DELETE n"))
-
-def load_graph_index_neo4j_storage_context(collection: str) -> (Neo4jGraphStore, StorageContext):
+        repeat = True
+        while repeat:
+            print(f"Attempting to delete {delete_batch_size} nodes ...")
+            consumed_result = session.execute_write(lambda tx: tx.run(delete_query, batchSize=delete_batch_size).consume())
+            del_count = consumed_result.counters.nodes_deleted
+            repeat = del_count > 0
+            
+def load_graph_index_neo4j_storage_context(collection: str) -> tuple[Neo4jGraphStore, StorageContext]:
     graph_store = Neo4jGraphStore(user, pwd, uri, collection)
     return graph_store, StorageContext.from_defaults(graph_store=graph_store)
 

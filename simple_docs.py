@@ -67,12 +67,12 @@ def get_aim_callback_handler(exec_id, llm_options, query_engine_options, command
     return get_aim_callback(experiment_name, aim_dir, aim_run_params)
 
 def ask_question(service_context, query_engine_options, doc_sum_index_dir, question):
-    print(f"Looking for an answer for question: {question}")
+    print(f"Finding an answer for question: {question}")
     answer_full = ask_hybrid_query_engine(service_context, query_engine_options, doc_sum_index_dir, collection, g_db, question)
     answer = answer_full.response
     if answer == "" or answer == None:
         answer = "No answer found."
-    print("Answer: " + answer)
+    print("\nAnswer: " + answer)
     print("\n")
     # print(f"  Source Nodes ({len(answer_full.source_nodes)}) :")
     # for n in answer_full.source_nodes:
@@ -84,6 +84,7 @@ if __name__ == "__main__":
     command, fixed_questions, llm_options, query_engine_options = get_params_from_env()
     llama_index.global_handler = get_aim_callback_handler(exec_id, llm_options, query_engine_options, command, fixed_questions)
     service_context = get_service_context(llm_options)
+    print(f"Service Context created ...")
 
     if fixed_questions is not None and fixed_questions != "":
         fixed_questions = fixed_questions.split("###")
