@@ -1,4 +1,4 @@
-llama_index
+llama_index==0.9.48
 transformers
 torch
 fastembed
