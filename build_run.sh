@@ -35,7 +35,7 @@ loop_through() {
             -e "QUERY_ENGINE_VARIANT=$QUERY_ENGINE_VARIANT" \
             -e "RERANKER_MODEL=BAAI/bge-reranker-base" \
             -e "RERANKER_K=5" \
-            -e "LLM_ENGINE=ollama-multi" \
+            -e "LLM_ENGINE=ollama" \
             -e "LLM_MODEL=neural-chat" \
             $IMAGE_NAME
             # -e "HOST_IP_OLLAMA=192.168.0.99" \
