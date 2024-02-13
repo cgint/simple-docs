@@ -9,6 +9,7 @@ from lib.index.doc_sum_index import load_doc_sum_index
 from lib.index.terms.kg_num_term_neo4j import load_graph_index
 from lib.vector_chroma import load_vector_index
 from llama_index.query_engine import RetrieverQueryEngine
+from lib import constants
 
 class HybridRetriever(BaseRetriever):
     """Retrieves nodes from multiple retrievers and combines the results."""
@@ -156,9 +157,10 @@ def get_hybrid_query_engine(service_context, query_engine_options, doc_sum_index
             doc_sum_index = load_doc_sum_index(service_context, doc_sum_index_dir)
         retrievers = []
         if "bm25" in variant:
+            start_time = time.time()
             print(f"Pushing {len(doc_sum_index.docstore.docs)} from doc_sum_index to BM25Retriever.")
             retriever = BM25Retriever.from_defaults(docstore=doc_sum_index.docstore, similarity_top_k=retriever_k)
-            print(f"Done.")
+            print(f"Done. Took {round(time.time() - start_time, 2)} seconds.")
             retrievers.append(retriever)
         if "vector" in variant:
             retrievers.append(load_vector_index(service_context, collection).as_retriever(similarity_top_k=retriever_k))
@@ -209,11 +211,13 @@ def get_hybrid_query_engine(service_context, query_engine_options, doc_sum_index
                     SentenceTransformerRerank(top_n=reranker_k, model=query_engine_options["reranker_model"]), 
                     PrintingPostProcessor(f"after {info_k}", True)
                 ]
-        cached_hybrid_retriever_engine[engine_cache_key] = wrap_in_sub_question_engine(RetrieverQueryEngine.from_args(
+        qe = RetrieverQueryEngine.from_args(
             retriever=HybridRetriever(retrievers),
             node_postprocessors=post_processors,
             service_context=service_context
-        ), service_context)
+        )
+        qe = wrap_in_sub_question_engine(qe, service_context)
+        cached_hybrid_retriever_engine[engine_cache_key] = qe
     return cached_hybrid_retriever_engine[engine_cache_key]
 
 def wrap_in_sub_question_engine(query_engine: RetrieverQueryEngine, service_context) -> RetrieverQueryEngine:
@@ -224,7 +228,7 @@ def wrap_in_sub_question_engine(query_engine: RetrieverQueryEngine, service_cont
     from guidance.models import OpenAI
     return SubQuestionQueryEngine.from_defaults(
         service_context=service_context,
-        question_gen= GuidanceQuestionGenerator.from_defaults(guidance_llm=OpenAI(model="gpt-3.5-turbo")),
+        question_gen = GuidanceQuestionGenerator.from_defaults(guidance_llm=OpenAI(model=constants.guidance_gpt_version)),
         query_engine_tools=[
             QueryEngineTool(
                 query_engine=query_engine,

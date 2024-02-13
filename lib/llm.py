@@ -1,13 +1,10 @@
 import os
-import random
-from threading import Lock
 from time import sleep
 from typing import Any, Callable, Dict, List, Optional, Sequence
 from llama_index.llms import OpenAI
 from llama_index.llms import Ollama
 from llama_index.llms import OpenAILike
-
-host_ip = os.getenv("HOST_IP", "host.docker.internal")
+from lib import constants
 
 def get_llm(llm_engine, llm_model, openai_model = None):
     temperature = 0.1
@@ -38,9 +35,10 @@ def get_llm(llm_engine, llm_model, openai_model = None):
         )
     elif llm_engine == "ollama-multi":
         llm_urls = [
-            f"http://{host_ip}:"+get_port_for_ollama_variant("ollama-gpu1"),
-            f"http://{host_ip}:"+get_port_for_ollama_variant("ollama-gpu0"),
-         #   f"http://{host_ip}:"+get_port_for_ollama_variant("ollama")
+            f"http://{constants.host_ip_ollama}:"+get_port_for_ollama_variant("ollama-gpu1"),
+            f"http://{constants.host_ip_ollama}:"+get_port_for_ollama_variant("ollama-gpu0"),
+            f"http://{constants.host_ip}:"+get_port_for_ollama_variant("ollama")
+         #   f"http://{constants.host_ip_ollama}:"+get_port_for_ollama_variant("ollama")
         ]
         print(f"About to instanciate LLM {llm_model} on {llm_urls} using Ollama-Instance {llm_engine} ...")
         workers = [
@@ -55,7 +53,7 @@ def get_llm(llm_engine, llm_model, openai_model = None):
         ]
         return MultiOllamaRoundRobin(workers)
     elif llm_engine.startswith("ollama"):
-        api_base_url = f"http://{host_ip}:{get_port_for_ollama_variant(llm_engine)}"
+        api_base_url = f"http://{constants.host_ip_ollama}:{get_port_for_ollama_variant(llm_engine)}"
         print(f"About to instanciate LLM {llm_model} on {api_base_url} using Ollama-Instance {llm_engine} ...")
         return Ollama(
             model=llm_model, 
@@ -153,11 +151,10 @@ def get_port_for_ollama_variant(llm_engine):
 def get_embed_model(embed_engine: str, embed_model_name: str):
     if embed_engine == "fastembed":
         from llama_index.embeddings.fastembed import FastEmbedEmbedding
-        embed_cache_dir = "/data/fastembed_cache/"
         print(f"About to instanciate Embed Model {embed_model_name} using FastEmbedEmbedding ...")
-        return FastEmbedEmbedding(model_name=embed_model_name, cache_dir=embed_cache_dir)
+        return FastEmbedEmbedding(model_name=embed_model_name, cache_dir=constants.embed_cache_dir)
     elif embed_engine.startswith("ollama"):
-        api_base_url = f"http://{host_ip}:{get_port_for_ollama_variant(embed_engine)}"
+        api_base_url = f"http://{constants.host_ip}:{get_port_for_ollama_variant(embed_engine)}"
         from llama_index.embeddings.ollama_embedding import OllamaEmbedding
         print(f"About to instanciate Embed Model {embed_model_name} using OllamaEmbedding ...")
         return OllamaEmbedding(model_name=embed_model_name, base_url=api_base_url)

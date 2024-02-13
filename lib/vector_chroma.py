@@ -7,16 +7,13 @@ from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine.retriever_query_engine import RetrieverQueryEngine
 import chromadb
 from llama_index.vector_stores.chroma import ChromaVectorStore
-
-import os
-
-host_ip = os.getenv("HOST_IP", "host.docker.internal")
+from lib import constants
 
 def chunker(seq, size):
     return (seq[pos:pos + size] for pos in range(0, len(seq), size))
 
 def get_or_create_chroma_collection(collection: str) -> chromadb.Collection:
-    remote_db = chromadb.HttpClient(host=host_ip)
+    remote_db = chromadb.HttpClient(host=constants.host_ip)
     return remote_db.get_or_create_collection(collection)
 
 def delete_chroma_collection(collection: str) -> None:

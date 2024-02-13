@@ -4,6 +4,7 @@ import pandas as pd
 from lib.index.helper import cur_simple_date_time_sec
 
 from lib.index.terms.terms import terms_from_txt
+from lib import constants
 
 
 doc_to_term = {}
@@ -25,9 +26,9 @@ def build_term_reference_index(doc: Document):
 
 def write_term_references_to_file():
     time = cur_simple_date_time_sec()
-    with open(f"/data/term_data/term_to_doc_{time}.json", "w") as f:
+    with open(f"{constants.term_data_dir}/term_to_doc_{time}.json", "w") as f:
         json.dump(term_to_doc, f, indent=2)
-    with open(f"/data/term_data/doc_to_term_{time}.json", "w") as f:
+    with open(f"{constants.term_data_dir}/doc_to_term_{time}.json", "w") as f:
         json.dump(doc_to_term, f, indent=2)
 
 def count_terms_per_document():
@@ -38,7 +39,7 @@ def count_terms_per_document():
         term_count.append((term, num_docs, num_all))
     tpd = pd.DataFrame(term_count, columns=["term", "num_docs", "num_all"])
     tpd = tpd.sort_values(by="num_all", ascending=False)
-    tpd.to_csv(f"/data/term_data/term_count_{cur_simple_date_time_sec()}.csv", index=False)
+    tpd.to_csv(f"{constants.term_data_dir}/term_count_{cur_simple_date_time_sec()}.csv", index=False)
     print(tpd)
 
 def get_term_to_doc_items():

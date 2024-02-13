@@ -3,18 +3,16 @@ from llama_index import Document, KnowledgeGraphIndex, StorageContext
 from llama_index.graph_stores.neo4j import Neo4jGraphStore
 from neo4j import GraphDatabase
 from llama_index.core.base_query_engine import BaseQueryEngine
-import os
+from lib import constants
 
-host_ip = os.getenv("HOST_IP", "host.docker.internal")
 user = "neo4j"
 pwd = ""
-uri = f"neo4j://{host_ip}:8687"
-g_db = "neo4j"
+uri = f"neo4j://{constants.host_ip}:8687"
 delete_batch_size = 10000
 delete_query = "MATCH (n) WITH n LIMIT $batchSize DETACH DELETE n"
 
 def kg_neo4j_delete_all_nodes():
-    with GraphDatabase.driver(uri=uri, auth=(user, pwd)).session(database=g_db) as session:
+    with GraphDatabase.driver(uri=uri, auth=(user, pwd)).session(database=constants.graph_db) as session:
         repeat = True
         while repeat:
             print(f"Attempting to delete {delete_batch_size} nodes ...")
@@ -27,7 +25,7 @@ def load_graph_index_neo4j_storage_context(collection: str) -> tuple[Neo4jGraphS
     return graph_store, StorageContext.from_defaults(graph_store=graph_store)
 
 def load_graph_index(service_context, graph_storage_dir: str) -> KnowledgeGraphIndex:
-    collection = g_db # graph_storage_dir.replace("/", "_").replace("_", "")
+    collection = constants.graph_db # graph_storage_dir.replace("/", "_").replace("_", "")
     _, storage_context = load_graph_index_neo4j_storage_context(collection)
     return KnowledgeGraphIndex.from_documents([],
         service_context=service_context,

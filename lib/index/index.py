@@ -8,17 +8,17 @@ from lib.index.helper import cur_simple_date_time_sec
 from lib.index.pdf import get_content_from_pdf_file
 from lib.index.terms.term_index import build_term_reference_index, count_terms_per_document, get_term_to_doc_items, write_term_references_to_file
 from lib.index.terms.terms import terms_from_txt
-from lib.index.web import create_simple_identifier_from_url
 from lib.index.terms.kg_num_term_neo4j import kg_neo4j_delete_all_nodes, operate_on_graph_index
-
+from lib.index.helper import list_files
 from lib.vector_chroma import delete_chroma_collection, operate_on_vector_index
 from llama_index import Document, KnowledgeGraphIndex
 from typing import List
+from lib import constants
 import queue
 import threading
 
-main_queue_size = 100
-worker_queue_sizes = 100
+main_queue_size = 1
+worker_queue_sizes = 5
 RETRY_ATTEMPTS_MAX = 3
 
 def init_consumer_threads(service_context, doc_sum_index_dir, collection, g_db):
@@ -53,22 +53,21 @@ def async_index(service_context, doc_sum_index_dir, collection, g_db, index_dir,
     # print("Deleting chroma entries ...")
     # delete_chroma_collection(collection)
     
-    q_main, consumer_threads = init_consumer_threads(service_context, doc_sum_index_dir, collection, g_db)
     
     # Start producing
     try:
-        index_produce_documents(index_dir, index_dir_done, lambda doc: register_main_queue_push(q_main, doc))
+        q_main, consumer_threads = init_consumer_threads(service_context, doc_sum_index_dir, collection, g_db)
+        index_produce_documents(constants.max_files_to_index_per_run, index_dir, index_dir_done, lambda doc: register_main_queue_push(q_main, doc))
     finally:
         # Tell consumer to stop and wait for it to finish
-        print("Stopping consumers ...")
+        print("Telling consumers to finish once their queues are empty ...")
         q_main.put(None)
+        for t in consumer_threads:
+            t.join()
 
     # count docs per term
     write_term_references_to_file()
     count_terms_per_document()
-
-    for t in consumer_threads:
-        t.join()
 
 def queue_fan_out(q, consumers):
     while True:
@@ -107,7 +106,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import queue
 import threading
 
-def index_consume_documents_threading_workers(log_name, q, process=lambda x: None, max_threads=1, max_queued_tasks=100):
+def index_consume_documents_threading_workers(log_name, q, process=lambda x: None, max_threads=1, max_queued_tasks=5):
     counter = 0
     futures = set()
 
@@ -120,7 +119,9 @@ def index_consume_documents_threading_workers(log_name, q, process=lambda x: Non
                 break  # Exit if None is received
 
             # Check if we need to wait for some tasks to complete
-            if len(futures) >= max_queued_tasks:
+            unfinished_count = len({future for future in futures if not future.done()})
+            if unfinished_count >= max_queued_tasks:
+                print(f" {log_name} - q(size={q.qsize()}) - Waiting for one of {unfinished_count} active tasks to complete before submitting next (backpressure) ...")
                 # Wait for at least one task to complete
                 _, futures = wait(futures, return_when=FIRST_COMPLETED)
 
@@ -132,8 +133,6 @@ def index_consume_documents_threading_workers(log_name, q, process=lambda x: Non
         # Wait for all submitted tasks to complete
         for future in as_completed(futures):
             future.result()  # This also helps in raising exceptions if any occurred
-
-        q.join()  # Wait for all tasks to be done
 
 def index_consume_documents_on_graph(service_context, collection, log_name, q):
     processor = lambda idx: index_consume_documents(log_name, q, lambda doc: idx_update_doc_on_graph(idx, doc))
@@ -162,56 +161,65 @@ def index_consume_documents(log_name, q, process=lambda: None):
 def index(service_context, doc_sum_index_dir, collection, g_db, index_dir, index_dir_done):
     async_index(service_context, doc_sum_index_dir, collection, g_db, index_dir, index_dir_done)
 
-def index_produce_documents(index_dir, index_dir_done, producer_sink=lambda: Document):
-    print(f"Indexing documents from {index_dir} ...")
-    files_to_index = [f for f in os.listdir(index_dir) if not f.startswith(".")]
-    files_to_index = [f for f in files_to_index if os.path.isfile(os.path.join(index_dir, f))]
+
+extensions_to_treat_as_plain_txt = ["tf", "yml", "yaml", "txt", "md", "java", "scala", "js", "ts", "xml", "kts", "gradle", "groovy", "py"]
+known_extensions = ["json", "html", "pdf"] + extensions_to_treat_as_plain_txt
+
+def index_produce_documents(max_files_to_process: int, index_dir: str, index_dir_done: str, producer_sink=lambda: Document):
+    print(f"Looking for documents under {index_dir} to be indexed recursively ...")
+    files_to_index = list_files(index_dir)
     if len(files_to_index) == 0:
         print(f"No documents to index in {index_dir}.")
         return
     
     run_index_time = cur_simple_date_time_sec()
-    print(f"Creating documents: {len(files_to_index)} for index {run_index_time}")
+    full_file_count = len(files_to_index)
+    file_counter = 0
+    print(f"Creating documents: {full_file_count} for index {run_index_time}")
     for file in files_to_index:
-        print(f"Indexing {file} ...")
-        file_full_path = os.path.join(index_dir, file)
+        file_full_path = file
+        file_extension = file_full_path.split('.')[-1]
+        if file_extension not in known_extensions:
+            print(f"Skipping unknown file extension: {file_extension} for file {file_full_path}")
+            continue
+        file_counter += 1
+        if max_files_to_process is not None and file_counter > max_files_to_process:
+            print(f"Max files to process ({max_files_to_process}) reached. Will stop producing tasks ...")
+            break
+        print(f"Indexing {file_counter}/{full_file_count} {file} ...")
+        single_file_processed = False
         if file == "fetch_urls.txt":
             get_documents_from_urls(read_relevant_lines(file_full_path), producer_sink)
         elif file == "mirror.txt":
             for url in read_relevant_lines(file_full_path):
                 # simple_url = create_simple_identifier_from_url(url)
-                # mirror_dir = f"/data/index_inbox/mirror/{simple_url}/{run_index_time}/"
+                # mirror_dir = f"{index_dir}/mirror/{simple_url}/{run_index_time}/"
                 # os.makedirs(mirror_dir, exist_ok=True)
                 get_documents_from_urls_as_mirror(None, url, producer_sink)
-        elif file.endswith(".txt"):
-            with open(file_full_path, "r") as f:
-                producer_sink(Document(text=f.read(), metadata={"source_id": file, "source_type": "txt"}))
-        elif file.endswith(".json"):
-            Document.from_json(file_full_path)
+        elif file_extension == "json":
+            single_file_processed = True
             with open(file_full_path, "r") as f:
                 doc = Document.from_json(f.read(), {"source_id": file, "source_type": "json"})
                 producer_sink(doc)
-        elif file.endswith(".md"):
+        elif file_extension == "html":
+            single_file_processed = True
             with open(file_full_path, "r") as f:
-                producer_sink(Document(text=f.read(), metadata={"source_id": file, "source_type": "txt"}))
-        elif file.endswith(".html"):
-            with open(file_full_path, "r") as f:
-                producer_sink(Document(text=clean_html_content(f.read()), metadata={"source_id": file, "source_type": "txt"}))
-        elif file.endswith(".pdf"):
+                producer_sink(Document(text=clean_html_content(f.read()), metadata={"source_id": file, "source_type": "html"}))
+        elif file_extension == "pdf":
+            single_file_processed = True
             for doc in get_content_from_pdf_file(file_full_path):
                 producer_sink(doc)
-    for file in files_to_index:
-        file_full_path = os.path.join(index_dir, file)
-        target_file_name = file
-        if file == "fetch_urls.txt":
-            target_file_name = f"fetch_urls_{run_index_time}.txt"
-        if file == "mirror.txt":
-            target_file_name = f"mirror_{run_index_time}.txt"
-        to_path = os.path.join(index_dir_done, target_file_name)
-        print(f" !!! NOT !!! - Moving {file_full_path} to {to_path} ... to preserve for the next run.")
-        #print(f"Moving {file_full_path} to {to_path} ...")
-        #os.rename(file_full_path, to_path)
-
+        elif file_extension in extensions_to_treat_as_plain_txt:
+            single_file_processed = True
+            with open(file_full_path, "r") as f:
+                producer_sink(Document(text=f.read(), metadata={"source_id": file, "source_type": file_extension}))
+        if single_file_processed:
+            target_file_name = file.replace(index_dir, index_dir_done)
+            # print(f" !!! NOT !!! - Moving {file_full_path} to {to_path} ... to preserve for the next run.")
+            print(f"Moving {file_full_path} to {target_file_name} ...")
+            os.makedirs(os.path.dirname(target_file_name), exist_ok=True)
+            os.rename(file_full_path, target_file_name)
+    
 
 def read_relevant_lines(file_path: str) -> List[str]:
     with open(file_path, "r") as f:

@@ -13,20 +13,24 @@ def get_documents_from_urls(urls: List[str], producer_sink=lambda: Document) -> 
         else:
             print(f"Skipping {url} ...")
 
-def extract_content_part_from_html(plain_html_content: str, initial_tag: str = "body") -> str:
+def extract_content_part_from_html(plain_html_content: str, initial_tag: str = "body", force_html: bool = False) -> str:
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(plain_html_content, 'html.parser')
     # fetch body only
-    content_part = soup.find(initial_tag)
+    content_part = soup.find(initial_tag) if soup.find(initial_tag) is not None else None
     if content_part is None:
-        content_part = soup.find('body')
+        content_part = soup.find('body') if soup.find('body') is not None else None
+    if content_part is None and force_html:
+        content_part = soup
+    else:
+        return ""
     # remove script and style tags
     for tagsToRemove in content_part(["script", "style"]):
         tagsToRemove.extract()
     return content_part
 
 def clean_html_content(plain_html_content: str) -> str:
-    return extract_content_part_from_html(plain_html_content, "article").get_text()
+    return extract_content_part_from_html(plain_html_content, "article", True).get_text()
 
 def get_urls_from_html_content(plain_html_content: str) -> List[str]:
     content_part = extract_content_part_from_html(plain_html_content)

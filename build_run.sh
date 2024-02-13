@@ -21,14 +21,15 @@ loop_through() {
 
         echo "QUERY_ENGINE_VARIANT: $QUERY_ENGINE_VARIANT"
         echo "ASK_SENTENCE: $3"
+            # --runtime nvidia --gpus all \
         docker run -it --rm \
             --name "simple_docs" \
-            --runtime nvidia --gpus all \
             --privileged \
             -v "./data:/data" \
             -v "./data_root_nltk:/root/nltk_data" \
             -v "./data/root_cache_huggingface:/root/.cache/huggingface" \
             -e "HOST_IP=$4" \
+            -e "HOST_IP_OLLAMA=192.168.0.99" \
             -e TOGETHER_AI_KEY \
             -e OPENAI_API_KEY \
             -e "PARAM_COMMAND=$1" \
