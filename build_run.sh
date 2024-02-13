@@ -29,7 +29,6 @@ loop_through() {
             -v "./data_root_nltk:/root/nltk_data" \
             -v "./data/root_cache_huggingface:/root/.cache/huggingface" \
             -e "HOST_IP=$4" \
-            -e "HOST_IP_OLLAMA=192.168.0.99" \
             -e TOGETHER_AI_KEY \
             -e OPENAI_API_KEY \
             -e "PARAM_COMMAND=$1" \
@@ -39,6 +38,7 @@ loop_through() {
             -e "LLM_ENGINE=ollama-multi" \
             -e "LLM_MODEL=neural-chat" \
             $IMAGE_NAME
+            # -e "HOST_IP_OLLAMA=192.168.0.99" \
             # -e "LLM_ENGINE=together" \
             # -e "LLM_MODEL=mistral-together" \
             # -e "OPENAI_MODEL=mistralai/Mistral-7B-Instruct-v0.2" \
