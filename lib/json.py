@@ -1,4 +1,4 @@
-from llama_index import Document
+from llama_index.core import Document
 
 def get_doc_from_json(content: str, metadata: dict) -> Document:
     """

@@ -1,8 +1,8 @@
 from typing import List
-from llama_index import Document, KnowledgeGraphIndex, StorageContext
+from llama_index.core import Document, KnowledgeGraphIndex, StorageContext
 from llama_index.graph_stores.neo4j import Neo4jGraphStore
 from neo4j import GraphDatabase
-from llama_index.core.base_query_engine import BaseQueryEngine
+from llama_index.core.query_engine import BaseQueryEngine
 from lib import constants
 
 user = "neo4j"
@@ -24,11 +24,10 @@ def load_graph_index_neo4j_storage_context(collection: str) -> tuple[Neo4jGraphS
     graph_store = Neo4jGraphStore(user, pwd, uri, collection)
     return graph_store, StorageContext.from_defaults(graph_store=graph_store)
 
-def load_graph_index(service_context, graph_storage_dir: str) -> KnowledgeGraphIndex:
+def load_graph_index(graph_storage_dir: str) -> KnowledgeGraphIndex:
     collection = constants.graph_db # graph_storage_dir.replace("/", "_").replace("_", "")
     _, storage_context = load_graph_index_neo4j_storage_context(collection)
     return KnowledgeGraphIndex.from_documents([],
-        service_context=service_context,
         storage_context=storage_context,
         index_id=collection,
         kg_triplet_extract_fn=kg_triplet_extract_fn_term_noop
@@ -38,19 +37,18 @@ def kg_triplet_extract_fn_term_noop(_: str):
     """Do not extract any triplets at this stage. Will be done after the document is indexed."""
     return []
 
-def get_graph_index(service_context, graph_storage_dir: str) -> KnowledgeGraphIndex:
-    return load_graph_index(service_context, graph_storage_dir)
+def get_graph_index(graph_storage_dir: str) -> KnowledgeGraphIndex:
+    return load_graph_index(graph_storage_dir)
 
-def operate_on_graph_index(service_context, graph_storage_dir: str, operation=lambda: None):
-    operation(get_graph_index(service_context, graph_storage_dir))
+def operate_on_graph_index(graph_storage_dir: str, operation=lambda: None):
+    operation(get_graph_index(graph_storage_dir))
 
 
-def add_to_or_update_in_graph(service_context, graph_storage_dir: str, documents: List[Document]):
+def add_to_or_update_in_graph(graph_storage_dir: str, documents: List[Document]):
     operate_on_graph_index(
-        service_context,
         graph_storage_dir,
         lambda graph_index: graph_index.refresh_ref_docs(documents)
     )
 
-def get_graph_query_engine(service_context, graph_storage_dir: str) -> BaseQueryEngine:
-    return load_graph_index(service_context, graph_storage_dir).as_query_engine()
+def get_graph_query_engine(graph_storage_dir: str) -> BaseQueryEngine:
+    return load_graph_index(graph_storage_dir).as_query_engine()

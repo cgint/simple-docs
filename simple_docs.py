@@ -5,25 +5,21 @@ from lib.hybrid_query import get_hybrid_query_engine
 from lib.index.helper import cur_simple_date_time_sec
 from lib.llm import get_aim_callback, get_embed_model, get_llm
 from lib.index.index import index
-from llama_index import ServiceContext
+from llama_index.core import Settings
 import llama_index
 from lib import constants
-from llama_index.query_engine import RetrieverQueryEngine
+from llama_index.core.query_engine import RetrieverQueryEngine
 
 exec_id = "ExecID: " + cur_simple_date_time_sec()
 
-def get_service_context(llm_options, callback_handler = None):
+def init_service_context(llm_options, callback_handler = None):
     if callback_handler is not None:
-        import llama_index
         llama_index.global_handler = callback_handler
     llm = get_llm(llm_options["engine"], llm_options["model"], llm_options["openai_model"])
     embed = get_embed_model(llm_options["embed_engine"], llm_options["embed_model"])
-    sc = ServiceContext.from_defaults(
-        llm=llm, 
-        chunk_size=512,
-        embed_model=embed
-    )
-    return sc
+    Settings.llm = llm
+    Settings.embed_model = embed
+    Settings.chunk_size = 512
 
 def get_params_from_env():
     command = os.environ.get("PARAM_COMMAND", "")
@@ -88,7 +84,7 @@ async def main():
     if command != "index":
         print(f"Setting callback handler for AIM as global handler ...")
         llama_index.global_handler = get_aim_callback_handler(exec_id, llm_options, query_engine_options, command, fixed_questions)
-    service_context = get_service_context(llm_options)
+    init_service_context(llm_options)
     print(f"Service Context created ...")
     if command != "index":
         print(f"Creating a query engine according to {query_engine_options} ...")
@@ -96,7 +92,7 @@ async def main():
         query_engine_options['collection'] = constants.collection
         query_engine_options['graph_db'] = constants.graph_db
         query_engine_options['kg_graph_index_dir'] = constants.kg_graph_index_dir
-        query_engine = get_hybrid_query_engine(service_context, query_engine_options)
+        query_engine = get_hybrid_query_engine(query_engine_options)
         print("Query engine created ...")
 
     if command == "index":
@@ -104,7 +100,7 @@ async def main():
         indexing_engine_options['collection'] = constants.collection
         indexing_engine_options['graph_db'] = constants.graph_db
         indexing_engine_options['kg_graph_index_dir'] = constants.kg_graph_index_dir
-        index(service_context, indexing_engine_options, constants.index_dir, constants.index_dir_done)
+        index(indexing_engine_options, constants.index_dir, constants.index_dir_done)
     elif fixed_questions is not None and fixed_questions != "":
         fixed_questions = fixed_questions.split("###")
         for question in fixed_questions:

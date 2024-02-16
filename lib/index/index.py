@@ -13,7 +13,7 @@ from lib.index.terms.kg_num_term_neo4j import kg_neo4j_delete_all_nodes, operate
 from lib.index.helper import list_files
 from lib.json import get_doc_from_json
 from lib.vector_chroma import delete_chroma_collection, operate_on_vector_index
-from llama_index import Document, KnowledgeGraphIndex
+from llama_index.core import Document, KnowledgeGraphIndex
 from typing import List
 from lib import constants
 import queue
@@ -25,22 +25,22 @@ consume_documents_threading_workers = 4
 RETRY_ATTEMPTS_MAX = 3
 DOC_SUM_PERSIST_EVERY = 50
 
-def init_consumer_threads(service_context, indexing_engine_options):
+def init_consumer_threads(indexing_engine_options):
     queues_map = {
         "vector": {
             "queue": queue.Queue(maxsize=worker_queue_sizes),
             "target": index_consume_documents_on_vector,
-            "baseArgs": (service_context, indexing_engine_options['collection'], "VectorIndex")
+            "baseArgs": (indexing_engine_options['collection'], "VectorIndex")
         },
         "graph": {
             "queue": queue.Queue(maxsize=worker_queue_sizes),
             "target": index_consume_documents_on_graph,
-            "baseArgs": (service_context, indexing_engine_options['graph_db'], "GraphIndex")
+            "baseArgs": (indexing_engine_options['graph_db'], "GraphIndex")
         },
         "kggraph": {
             "queue": queue.Queue(maxsize=worker_queue_sizes),
             "target": index_consume_documents_on_kg_graph,
-            "baseArgs": (service_context, indexing_engine_options['kg_graph_index_dir'], "KGGraphIndex")
+            "baseArgs": (indexing_engine_options['kg_graph_index_dir'], "KGGraphIndex")
         },
         "term": {
             "queue": queue.Queue(maxsize=worker_queue_sizes),
@@ -50,7 +50,7 @@ def init_consumer_threads(service_context, indexing_engine_options):
         "docsum": {
             "queue": queue.Queue(maxsize=worker_queue_sizes),
             "target": index_consume_documents_on_doc_sum,
-            "baseArgs": (service_context, indexing_engine_options['doc_sum_index_dir'], "DocSumIndex")
+            "baseArgs": (indexing_engine_options['doc_sum_index_dir'], "DocSumIndex")
         }
     }
 
@@ -78,7 +78,7 @@ def register_main_queue_push(q_main: queue.Queue, doc: Document):
     # print(f"Pushing document '{doc_id}' to main_queue (size={q_size}) ...")
     q_main.put(doc)
 
-def async_index(service_context, indexing_engine_options, index_dir, index_dir_done):
+def async_index(indexing_engine_options, index_dir, index_dir_done):
     if constants.del_indices_all:
         print("Deleting neo4j nodes ...")
         kg_neo4j_delete_all_nodes()
@@ -91,7 +91,7 @@ def async_index(service_context, indexing_engine_options, index_dir, index_dir_d
     
     # Start producing
     try:
-        q_main, consumer_threads = init_consumer_threads(service_context, indexing_engine_options)
+        q_main, consumer_threads = init_consumer_threads(indexing_engine_options)
         index_produce_documents(constants.max_files_to_index_per_run, index_dir, index_dir_done, lambda doc: register_main_queue_push(q_main, doc))
     finally:
         # Tell consumer to stop and wait for it to finish
@@ -163,29 +163,29 @@ def index_consume_documents_threading_workers(log_name, q, persist=lambda: None,
         for future in as_completed(futures):
             future.result()  # This also helps in raising exceptions if any occurred
 
-def index_consume_documents_on_vector(service_context, collection, log_name, q):
+def index_consume_documents_on_vector(collection, log_name, q):
     processor = lambda idx: index_consume_documents(log_name, q, lambda doc: try_refresh_ref_docs_retry_max(RETRY_ATTEMPTS_MAX, idx, doc))
-    operate_on_vector_index(service_context, collection, processor)
+    operate_on_vector_index(collection, processor)
 
-def index_consume_documents_on_doc_sum(service_context, storage_dir, log_name, q):
+def index_consume_documents_on_doc_sum(storage_dir, log_name, q):
     processor = lambda idx: index_consume_documents_threading_workers(log_name, q, 
         lambda: persist_index(idx, storage_dir), 
         lambda doc: try_refresh_ref_docs_retry_max(RETRY_ATTEMPTS_MAX, idx, doc), 
         consume_documents_threading_workers)
-    operate_on_doc_sum_index(service_context, storage_dir, processor)
+    operate_on_doc_sum_index(storage_dir, processor)
 
-def index_consume_documents_on_graph(service_context, collection, log_name, q):
+def index_consume_documents_on_graph(collection, log_name, q):
     processor = lambda idx: index_consume_documents(log_name, q, lambda doc: idx_update_doc_on_graph(idx, doc))
-    operate_on_graph_index(service_context, collection, processor)
+    operate_on_graph_index(collection, processor)
 
-def index_consume_documents_on_kg_graph(service_context, kg_graph_index_dir, log_name, q):
+def index_consume_documents_on_kg_graph(kg_graph_index_dir, log_name, q):
     # processor = lambda idx: index_consume_documents(log_name, q, lambda doc: try_refresh_ref_docs_retry_max(RETRY_ATTEMPTS_MAX, idx, doc))
     processor = lambda idx: index_consume_documents_threading_workers(log_name, q, 
         lambda: persist_index(idx, kg_graph_index_dir), 
         lambda doc: try_refresh_ref_docs_retry_max(RETRY_ATTEMPTS_MAX, idx, doc), 
         consume_documents_threading_workers)
-    operate_on_kg_graph_index(service_context, kg_graph_index_dir, processor)
-    # operate_on_doc_sum_index(service_context, storage_dir, processor)
+    operate_on_kg_graph_index(kg_graph_index_dir, processor)
+    # operate_on_doc_sum_index(storage_dir, processor)
 
 def index_consume_documents_on_term_index(log_name, q):
     index_consume_documents(log_name, q, build_term_reference_index)
@@ -207,8 +207,8 @@ def index_consume_documents(log_name, q, process=lambda: None):
         process(doc)
         q.task_done()
 
-def index(service_context, indexing_engine_options, index_dir, index_dir_done):
-    async_index(service_context, indexing_engine_options, index_dir, index_dir_done)
+def index(indexing_engine_options, index_dir, index_dir_done):
+    async_index(indexing_engine_options, index_dir, index_dir_done)
 
 
 extensions_to_treat_as_plain_txt = ["tf", "yml", "yaml", "txt", "md", "java", "scala", "js", "ts", "xml", "kts", "gradle", "groovy", "py"]

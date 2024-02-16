@@ -1,21 +1,16 @@
 import os
 from time import sleep
 from typing import Any, Callable, Dict, List, Optional, Sequence
-from llama_index.llms import OpenAI
-from llama_index.llms import Ollama
-from llama_index.llms import OpenAILike
+from llama_index.llms.openai_like import OpenAILike
+from llama_index.llms.ollama import Ollama
+from llama_index.llms.openai import OpenAI
 from lib import constants
 from lib.index.helper import cur_simple_date_time_sec
+from llama_index.llms.gemini import Gemini
 
 def get_llm(llm_engine, llm_model, openai_model = None):
     temperature = 0.1
-    # TODO try out vllm
-    if llm_engine == "gemini":
-        from llama_index.llms.vllm import Gemini
-        print(f"About to instanciate LLM {llm_model} using VLLM ...")
-        return Vllm()
-        pass
-    elif llm_engine == "together":
+    if llm_engine == "together":
         if openai_model is None:
             raise Exception("openai_model must be set when using together.ai")
         print(f"About to instanciate LLM {openai_model} using Together.ai ...")
@@ -72,17 +67,9 @@ def get_llm(llm_engine, llm_model, openai_model = None):
     else:
         raise Exception(f"Unknown llm_engine: {llm_engine}")
 
-from llama_index.llms.base import llm_chat_callback, llm_completion_callback
-from llama_index.llms.custom import CustomLLM
-from llama_index.core.llms.types import (
-    ChatMessage,
-    ChatResponse,
-    ChatResponseGen,
-    CompletionResponse,
-    CompletionResponseGen,
-    LLMMetadata,
-    MessageRole,
-)
+from llama_index.core.llms.callbacks import llm_chat_callback, llm_completion_callback
+from llama_index.core.llms import CustomLLM
+from llama_index.core.llms import ChatMessage, ChatResponse, ChatResponseGen, CompletionResponse, CompletionResponseGen, LLMMetadata, MessageRole
 class MultiOllamaRoundRobin(CustomLLM):
     ollama_workers: List[Ollama]
     ollama_main: Ollama
@@ -173,13 +160,13 @@ def get_port_for_ollama_variant(llm_engine):
         raise Exception(f"Unknown llm_engine: {llm_engine}. Known are 'ollama', 'ollama-gpu0', 'ollama-gpu1'")
     
 def get_embed_model(embed_engine: str, embed_model_name: str):
+    from llama_index.embeddings.fastembed import FastEmbedEmbedding
+    from llama_index.embeddings.ollama import OllamaEmbedding
     if embed_engine == "fastembed":
-        from llama_index.embeddings.fastembed import FastEmbedEmbedding
         print(f"About to instanciate Embed Model {embed_model_name} using FastEmbedEmbedding ...")
         return FastEmbedEmbedding(model_name=embed_model_name, cache_dir=constants.embed_cache_dir)
     elif embed_engine.startswith("ollama"):
         api_base_url = f"http://{constants.host_ip}:{get_port_for_ollama_variant(embed_engine)}"
-        from llama_index.embeddings.ollama_embedding import OllamaEmbedding
         print(f"About to instanciate Embed Model {embed_model_name} using OllamaEmbedding ...")
         return OllamaEmbedding(model_name=embed_model_name, base_url=api_base_url)
     else:
@@ -191,9 +178,9 @@ def get_csv_callback_handler():
     return SimpleDictStoreHandler(communication_log_csv)
 
 def get_aim_callback(aim_experiment_name, aim_path, aim_run_params: Optional[Dict[str, Any]] = None):
-    from llama_index.callbacks import AimCallback
+    from llama_index.callbacks.aim import AimCallback
     return AimCallback(experiment_name=aim_experiment_name, repo=aim_path, run_params=aim_run_params)
 
 def get_callback_manager(aim_path, aim_run_params: Optional[Dict[str, Any]] = None):
-    from llama_index.callbacks.base import CallbackManager
+    from llama_index.core.callbacks import CallbackManager
     return CallbackManager(handlers=[get_csv_callback_handler(), get_aim_callback(aim_path, aim_run_params)])

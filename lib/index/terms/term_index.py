@@ -1,5 +1,5 @@
 import json
-from llama_index import Document
+from llama_index.core import Document
 import pandas as pd
 from lib.index.helper import cur_simple_date_time_sec
 

@@ -1,10 +1,9 @@
 import os
-from llama_index import DocumentSummaryIndex, StorageContext, get_response_synthesizer, load_index_from_storage
-from llama_index.query_engine import BaseQueryEngine
+from llama_index.core import DocumentSummaryIndex, StorageContext, get_response_synthesizer, load_index_from_storage
+from llama_index.core.query_engine import BaseQueryEngine
 
-def create_doc_summary_index(documents, service_context, storage_dir):
+def create_doc_summary_index(documents, storage_dir):
     return operate_on_doc_sum_index(
-        service_context,
         storage_dir,
         lambda doc_sum_index: doc_sum_index.refresh_ref_docs(documents)
     )
@@ -20,9 +19,9 @@ def persist_index(idx: DocumentSummaryIndex, doc_sum_index_dir: str):
     print(f"Persisting {doc_count} docs for doc_sum_index to {doc_sum_index_dir} ...")
     idx.storage_context.persist(persist_dir=doc_sum_index_dir)
 
-def operate_on_doc_sum_index(service_context, doc_sum_index_dir: str, operation=lambda: None) -> DocumentSummaryIndex:
+def operate_on_doc_sum_index(doc_sum_index_dir: str, operation=lambda: None) -> DocumentSummaryIndex:
     import atexit
-    idx = get_doc_sum_index(service_context, doc_sum_index_dir)
+    idx = get_doc_sum_index(doc_sum_index_dir)
     atexist_reg_callable = atexit.register(persist_index, idx, doc_sum_index_dir)
     try:
         operation(idx)
@@ -31,26 +30,23 @@ def operate_on_doc_sum_index(service_context, doc_sum_index_dir: str, operation=
         atexit.unregister(atexist_reg_callable)
     return idx
 
-def get_doc_sum_index(service_context, doc_sum_index_dir):
-    return load_doc_sum_index(service_context, doc_sum_index_dir)
+def get_doc_sum_index(doc_sum_index_dir) -> DocumentSummaryIndex:
+    return load_doc_sum_index(doc_sum_index_dir)
 
-def load_doc_sum_index(service_context, doc_sum_index_dir):
+def load_doc_sum_index(doc_sum_index_dir) -> DocumentSummaryIndex:
     if not os.path.exists(doc_sum_index_dir):
         print(f"Creating doc_sum_index in {doc_sum_index_dir} ...")
         idx = DocumentSummaryIndex.from_documents(
             [],
-            service_context=service_context,
             show_progress=True,
         )
         persist_index(idx, doc_sum_index_dir)
     sc = StorageContext.from_defaults(persist_dir=doc_sum_index_dir)
-    return load_index_from_storage(sc, service_context=service_context, show_progress=True)
+    return load_index_from_storage(sc, show_progress=True)
 
-def get_doc_sum_index_query_engine(service_context, doc_sum_index_dir: str) -> BaseQueryEngine:
-    return load_doc_sum_index(service_context, doc_sum_index_dir).as_query_engine(
-        service_context=service_context,
+def get_doc_sum_index_query_engine(doc_sum_index_dir: str) -> BaseQueryEngine:
+    return load_doc_sum_index(doc_sum_index_dir).as_query_engine(
         response_synthesizer=get_response_synthesizer(
-            service_context=service_context,
             response_mode="tree_summarize", 
             use_async=True
         )

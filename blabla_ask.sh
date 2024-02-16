@@ -9,7 +9,7 @@ echo "HOST_IP_ADDR: $HOST_IP_ADDR"
 #  LLM_ENGINE=ollama-ssh LLM_MODEL=neural-chat HOST_IP_OLLAMA=localhost \
 #  LLM_ENGINE=ollama LLM_MODEL=neural-chat \
 
-PARAM_COMMAND=ask QUERY_ENGINE_VARIANT=graph-vector-docsum-bm25 HOST_IP=$HOST_IP_ADDR \
+PARAM_COMMAND=ask QUERY_ENGINE_VARIANT=graph-vector-gkgraph-docsum-bm25 HOST_IP=$HOST_IP_ADDR \
  RERANKER_MODEL=BAAI/bge-reranker-base RERANKER_K=10 \
  LLM_ENGINE=ollama-multi HOST_IP_OLLAMA=192.168.0.99 LLM_MODEL=neural-chat \
  DATA_DIR=./data \

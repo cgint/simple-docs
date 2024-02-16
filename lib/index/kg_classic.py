@@ -1,7 +1,7 @@
 from typing import List
-from llama_index import Document, KnowledgeGraphIndex, StorageContext
-from llama_index.core.base_query_engine import BaseQueryEngine
-from llama_index import load_index_from_storage
+from llama_index.core import Document, KnowledgeGraphIndex, StorageContext
+from llama_index.core.query_engine import BaseQueryEngine
+from llama_index.core import load_index_from_storage
 import os
 
 def load_kg_graph_index_storage_context(kg_graph_storage_dir: str) -> StorageContext:
@@ -18,25 +18,23 @@ def delete_kg_graph_index(kg_graph_storage_dir: str):
         import shutil
         shutil.rmtree(kg_graph_storage_dir)
 
-def load_kg_graph_index(service_context, kg_graph_storage_dir: str) -> KnowledgeGraphIndex:
+def load_kg_graph_index(kg_graph_storage_dir: str) -> KnowledgeGraphIndex:
     if not os.path.exists(kg_graph_storage_dir):
         print(f"About to initialize an empty kg-graph ...")
         kg_graph = KnowledgeGraphIndex.from_documents(
-            [],
-            service_context=service_context
+            []
         )
         persist_kg_graph_index(kg_graph, kg_graph_storage_dir)
     return load_index_from_storage(
-        service_context=service_context,
         storage_context=load_kg_graph_index_storage_context(kg_graph_storage_dir)
     )
 
-def get_kg_graph_index(service_context, graph_storage_dir: str) -> KnowledgeGraphIndex:
-    return load_kg_graph_index(service_context, graph_storage_dir)
+def get_kg_graph_index(graph_storage_dir: str) -> KnowledgeGraphIndex:
+    return load_kg_graph_index(graph_storage_dir)
 
-def operate_on_kg_graph_index(service_context, kg_graph_index_dir: str, operation=lambda: None) -> KnowledgeGraphIndex:
+def operate_on_kg_graph_index(kg_graph_index_dir: str, operation=lambda: None) -> KnowledgeGraphIndex:
     import atexit
-    idx = get_kg_graph_index(service_context, kg_graph_index_dir)
+    idx = get_kg_graph_index(kg_graph_index_dir)
     atexist_reg_callable = atexit.register(persist_kg_graph_index, idx, kg_graph_index_dir)
     try:
         operation(idx)
@@ -46,12 +44,11 @@ def operate_on_kg_graph_index(service_context, kg_graph_index_dir: str, operatio
     return idx
 
 
-def add_to_or_update_in_kg_graph(service_context, graph_storage_dir: str, documents: List[Document]):
+def add_to_or_update_in_kg_graph(graph_storage_dir: str, documents: List[Document]):
     operate_on_kg_graph_index(
-        service_context,
         graph_storage_dir,
         lambda graph_index: graph_index.refresh_ref_docs(documents)
     )
 
-def get_kg_graph_query_engine(service_context, graph_storage_dir: str) -> BaseQueryEngine:
-    return load_kg_graph_index(service_context, graph_storage_dir).as_query_engine()
+def get_kg_graph_query_engine(graph_storage_dir: str) -> BaseQueryEngine:
+    return load_kg_graph_index(graph_storage_dir).as_query_engine()

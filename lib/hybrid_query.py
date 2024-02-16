@@ -1,15 +1,16 @@
 import time
 from typing import List, Optional
-from llama_index.postprocessor.types import BaseNodePostprocessor
-from llama_index.schema import NodeWithScore, QueryBundle
-from llama_index.retrievers import BaseRetriever
+from llama_index.core.postprocessor.types import BaseNodePostprocessor
+from llama_index.core.schema import NodeWithScore
+from llama_index.core import QueryBundle
+from llama_index.core.retrievers import BaseRetriever
 import concurrent.futures
 
 from lib.index.doc_sum_index import load_doc_sum_index
 from lib.index.kg_classic import load_kg_graph_index
 from lib.index.terms.kg_num_term_neo4j import load_graph_index
 from lib.vector_chroma import load_vector_index
-from llama_index.query_engine import RetrieverQueryEngine
+from llama_index.core.query_engine import RetrieverQueryEngine
 from lib import constants
 
 class HybridRetriever(BaseRetriever):
@@ -143,19 +144,19 @@ class QueryWordmatchReranker(BaseNodePostprocessor):
 
 
 cached_hybrid_retriever_engine = {}
-def get_hybrid_query_engine(service_context, query_engine_options) -> RetrieverQueryEngine:
+def get_hybrid_query_engine(query_engine_options) -> RetrieverQueryEngine:
     global cached_hybrid_retriever_engine
     variant = query_engine_options["variant"]
     reranker_model = query_engine_options["reranker_model"]
     engine_cache_key = f"{variant}-{reranker_model}"
     if not engine_cache_key in cached_hybrid_retriever_engine:
         print("Creating new hybrid query engine ...")
-        from llama_index.postprocessor import SentenceTransformerRerank
-        from llama_index.retrievers import BM25Retriever
-        from llama_index.response_synthesizers import ResponseMode
+        from llama_index.core.postprocessor import SentenceTransformerRerank
+        from llama_index.retrievers.bm25 import BM25Retriever
+        from llama_index.core.response_synthesizers import ResponseMode
         retriever_k = int(query_engine_options["retriever_k"])
         if "bm25" in variant or "docsum" in variant:
-            doc_sum_index = load_doc_sum_index(service_context, query_engine_options["doc_sum_index_dir"])
+            doc_sum_index = load_doc_sum_index(query_engine_options["doc_sum_index_dir"])
         retrievers = []
         if "bm25" in variant:
             start_time = time.time()
@@ -164,13 +165,13 @@ def get_hybrid_query_engine(service_context, query_engine_options) -> RetrieverQ
             print(f"Done. Took {round(time.time() - start_time, 2)} seconds.")
             retrievers.append(retriever)
         if "kggraph" in variant:
-            retrievers.append(load_kg_graph_index(service_context, query_engine_options["kg_graph_index_dir"]).as_retriever(similarity_top_k=retriever_k))
+            retrievers.append(load_kg_graph_index(query_engine_options["kg_graph_index_dir"]).as_retriever(similarity_top_k=retriever_k))
         if "vector" in variant:
-            retrievers.append(load_vector_index(service_context, query_engine_options["collection"]).as_retriever(similarity_top_k=retriever_k))
+            retrievers.append(load_vector_index(query_engine_options["collection"]).as_retriever(similarity_top_k=retriever_k))
         if "docsum" in variant:
             retrievers.append(doc_sum_index.as_retriever(similarity_top_k=retriever_k))
         if "graph" in variant:
-            retrievers.append(load_graph_index(service_context, query_engine_options["g_db"]).as_retriever(similarity_top_k=retriever_k))
+            retrievers.append(load_graph_index(query_engine_options["graph_db"]).as_retriever(similarity_top_k=retriever_k))
         
         reranker_k = int(query_engine_options["reranker_k"])
         if "none" == reranker_model:
@@ -217,22 +218,20 @@ def get_hybrid_query_engine(service_context, query_engine_options) -> RetrieverQ
         qe = RetrieverQueryEngine.from_args(
             retriever=HybridRetriever(retrievers),
             node_postprocessors=post_processors,
-            service_context=service_context,
             response_mode=ResponseMode.TREE_SUMMARIZE,
             use_async=True
         )
-        qe = wrap_in_sub_question_engine(qe, service_context)
+        qe = wrap_in_sub_question_engine(qe)
         cached_hybrid_retriever_engine[engine_cache_key] = qe
     return cached_hybrid_retriever_engine[engine_cache_key]
 
-def wrap_in_sub_question_engine(query_engine: RetrieverQueryEngine, service_context) -> RetrieverQueryEngine:
+def wrap_in_sub_question_engine(query_engine: RetrieverQueryEngine) -> RetrieverQueryEngine:
     """Wraps the given query engine in a sub question engine."""
-    from llama_index.query_engine import SubQuestionQueryEngine
-    from llama_index.tools import QueryEngineTool, ToolMetadata
-    from llama_index.question_gen.guidance_generator import GuidanceQuestionGenerator
+    from llama_index.core.query_engine import SubQuestionQueryEngine
+    from llama_index.core.tools import QueryEngineTool, ToolMetadata
+    from llama_index.question_gen.guidance import GuidanceQuestionGenerator
     from guidance.models import OpenAI
     return SubQuestionQueryEngine.from_defaults(
-        service_context=service_context,
         question_gen = GuidanceQuestionGenerator.from_defaults(guidance_llm=OpenAI(model=constants.guidance_gpt_version)),
         query_engine_tools=[
             QueryEngineTool(

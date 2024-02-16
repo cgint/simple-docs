@@ -1,7 +1,7 @@
 
 from typing import List
 from urllib.parse import urljoin
-from llama_index import Document
+from llama_index.core import Document
 
 from lib.index.web import create_simple_identifier_from_url, get_plain_content_from
 
