@@ -1,3 +1,4 @@
+import asyncio
 import os
 from lib.hybrid_query import get_hybrid_query_engine
 
@@ -45,7 +46,10 @@ def get_params_from_env():
         "reranker_k": os.environ.get("RERANKER_K", "14000"),
         "reranker_model": os.environ.get("RERANKER_MODEL", "query-wordmatch-charsum") # "BAAI/bge-reranker-base")
     }
-    return command, fixed_questions, llm_options, query_engine_options
+    indexing_engine_options = {
+        "variant": os.environ.get("INDEXING_ENGINE_VARIANT", "vector-graph-docsum-term")
+    }
+    return command, fixed_questions, llm_options, query_engine_options, indexing_engine_options
 
 def get_aim_callback_handler(exec_id, llm_options, query_engine_options, command, question_info = None):
     experiment_name = f"{llm_options['engine']}_{llm_options['model']}" + (f"_{llm_options['openai_model']}" if llm_options['openai_model'] is not None else "")
@@ -59,10 +63,10 @@ def get_aim_callback_handler(exec_id, llm_options, query_engine_options, command
         aim_run_params['question_info'] = question_info
     return get_aim_callback(experiment_name, constants.aim_dir, aim_run_params)
 
-def ask_question(query_engine: RetrieverQueryEngine, question: str):
+async def ask_question(query_engine: RetrieverQueryEngine, question: str):
     print(f"Finding an answer for question: {question}")
     try:
-        answer_full = query_engine.query(question)
+        answer_full = await query_engine.aquery(question)
         # print(answer_full.source_nodes)
         answer = answer_full.response.strip()
     except Exception as e:
@@ -78,8 +82,9 @@ def ask_question(query_engine: RetrieverQueryEngine, question: str):
     #     print(f"    Source Node: {n.score} - {n.node_id} - {first_text_chars} - {answer_full.metadata[n.node_id]}")
     # print("\n")
 
-if __name__ == "__main__":
-    command, fixed_questions, llm_options, query_engine_options = get_params_from_env()
+
+async def main():
+    command, fixed_questions, llm_options, query_engine_options, indexing_engine_options = get_params_from_env()
     if command != "index":
         print(f"Setting callback handler for AIM as global handler ...")
         llama_index.global_handler = get_aim_callback_handler(exec_id, llm_options, query_engine_options, command, fixed_questions)
@@ -87,15 +92,23 @@ if __name__ == "__main__":
     print(f"Service Context created ...")
     if command != "index":
         print(f"Creating a query engine according to {query_engine_options} ...")
-        query_engine = get_hybrid_query_engine(service_context, query_engine_options, constants.doc_sum_index_dir, constants.collection, constants.graph_db)
+        query_engine_options['doc_sum_index_dir'] = constants.doc_sum_index_dir
+        query_engine_options['collection'] = constants.collection
+        query_engine_options['graph_db'] = constants.graph_db
+        query_engine_options['kg_graph_index_dir'] = constants.kg_graph_index_dir
+        query_engine = get_hybrid_query_engine(service_context, query_engine_options)
         print("Query engine created ...")
 
     if command == "index":
-        index(service_context, constants.doc_sum_index_dir, constants.collection, constants.graph_db, constants.index_dir, constants.index_dir_done)
+        indexing_engine_options['doc_sum_index_dir'] = constants.doc_sum_index_dir
+        indexing_engine_options['collection'] = constants.collection
+        indexing_engine_options['graph_db'] = constants.graph_db
+        indexing_engine_options['kg_graph_index_dir'] = constants.kg_graph_index_dir
+        index(service_context, indexing_engine_options, constants.index_dir, constants.index_dir_done)
     elif fixed_questions is not None and fixed_questions != "":
         fixed_questions = fixed_questions.split("###")
         for question in fixed_questions:
-            ask_question(query_engine, question)
+            await ask_question(query_engine, question)
     else:
         while True:
             question = input("Ask (type 'e' or 'end' to finish): ").strip()
@@ -103,5 +116,9 @@ if __name__ == "__main__":
                 continue
             if question == "end" or question == "e":
                 break
-            ask_question(query_engine, question)
+            await ask_question(query_engine, question)
         print("\nBye.")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

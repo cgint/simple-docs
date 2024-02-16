@@ -6,6 +6,7 @@ from llama_index.retrievers import BaseRetriever
 import concurrent.futures
 
 from lib.index.doc_sum_index import load_doc_sum_index
+from lib.index.kg_classic import load_kg_graph_index
 from lib.index.terms.kg_num_term_neo4j import load_graph_index
 from lib.vector_chroma import load_vector_index
 from llama_index.query_engine import RetrieverQueryEngine
@@ -142,7 +143,7 @@ class QueryWordmatchReranker(BaseNodePostprocessor):
 
 
 cached_hybrid_retriever_engine = {}
-def get_hybrid_query_engine(service_context, query_engine_options, doc_sum_index_dir, collection, g_db) -> RetrieverQueryEngine:
+def get_hybrid_query_engine(service_context, query_engine_options) -> RetrieverQueryEngine:
     global cached_hybrid_retriever_engine
     variant = query_engine_options["variant"]
     reranker_model = query_engine_options["reranker_model"]
@@ -154,7 +155,7 @@ def get_hybrid_query_engine(service_context, query_engine_options, doc_sum_index
         from llama_index.response_synthesizers import ResponseMode
         retriever_k = int(query_engine_options["retriever_k"])
         if "bm25" in variant or "docsum" in variant:
-            doc_sum_index = load_doc_sum_index(service_context, doc_sum_index_dir)
+            doc_sum_index = load_doc_sum_index(service_context, query_engine_options["doc_sum_index_dir"])
         retrievers = []
         if "bm25" in variant:
             start_time = time.time()
@@ -162,12 +163,14 @@ def get_hybrid_query_engine(service_context, query_engine_options, doc_sum_index
             retriever = BM25Retriever.from_defaults(docstore=doc_sum_index.docstore, similarity_top_k=retriever_k)
             print(f"Done. Took {round(time.time() - start_time, 2)} seconds.")
             retrievers.append(retriever)
+        if "kggraph" in variant:
+            retrievers.append(load_kg_graph_index(service_context, query_engine_options["kg_graph_index_dir"]).as_retriever(similarity_top_k=retriever_k))
         if "vector" in variant:
-            retrievers.append(load_vector_index(service_context, collection).as_retriever(similarity_top_k=retriever_k))
+            retrievers.append(load_vector_index(service_context, query_engine_options["collection"]).as_retriever(similarity_top_k=retriever_k))
         if "docsum" in variant:
             retrievers.append(doc_sum_index.as_retriever(similarity_top_k=retriever_k))
         if "graph" in variant:
-            retrievers.append(load_graph_index(service_context, g_db).as_retriever(similarity_top_k=retriever_k))
+            retrievers.append(load_graph_index(service_context, query_engine_options["g_db"]).as_retriever(similarity_top_k=retriever_k))
         
         reranker_k = int(query_engine_options["reranker_k"])
         if "none" == reranker_model:
@@ -214,7 +217,9 @@ def get_hybrid_query_engine(service_context, query_engine_options, doc_sum_index
         qe = RetrieverQueryEngine.from_args(
             retriever=HybridRetriever(retrievers),
             node_postprocessors=post_processors,
-            service_context=service_context
+            service_context=service_context,
+            response_mode=ResponseMode.TREE_SUMMARIZE,
+            use_async=True
         )
         qe = wrap_in_sub_question_engine(qe, service_context)
         cached_hybrid_retriever_engine[engine_cache_key] = qe
@@ -239,5 +244,6 @@ def wrap_in_sub_question_engine(query_engine: RetrieverQueryEngine, service_cont
                     )
                 )
             )
-        ]
+        ],
+        use_async=True
     )

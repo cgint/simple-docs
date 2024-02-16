@@ -1,7 +1,7 @@
 from typing import List
 
 
-characters_to_replace_before = ["</", "<", ">", "\n", "\r", "\t", "?", "!", ".", ",", ":", ";", "(", ")", "[", "]", "{", "}", "+", "="]
+characters_to_replace_before = ["\"", "</", "<", ">", "\n", "\r", "\t", "?", "!", ".", ",", ":", ";", "(", ")", "[", "]", "{", "}", "+", "="]
 characters_to_ignore_when_equals_term = ["#", "-"]
 characters_replace_by = " "
 

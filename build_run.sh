@@ -1,4 +1,5 @@
 #!/bin/bash
+docker-compose up -d
 
 # Define a variable for the image name
 IMAGE_NAME="llama_simple_docs"
@@ -31,6 +32,7 @@ loop_through() {
             -e "HOST_IP=$4" \
             -e TOGETHER_AI_KEY \
             -e OPENAI_API_KEY \
+            -e GOOGLE_API_KEY \
             -e "PARAM_COMMAND=$1" \
             -e "QUERY_ENGINE_VARIANT=$QUERY_ENGINE_VARIANT" \
             -e "RERANKER_MODEL=BAAI/bge-reranker-base" \

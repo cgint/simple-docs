@@ -22,7 +22,7 @@ def delete_chroma_collection(collection: str) -> None:
     print(f"Deleting {len(doc_ids)} documents from chroma_collection ...")
     batch_size = 20000
     for i, batch in enumerate(chunker(doc_ids, batch_size)):
-        print(f"Deleting batch {i+1}/{len(batch)} ...")
+        print(f"Deleting batch {i+1} with batch-size of {len(batch)} items ...")
         chroma_collection.delete(ids=batch)
     print(f"Collection.count()={chroma_collection.count()} ...")
 

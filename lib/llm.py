@@ -5,10 +5,17 @@ from llama_index.llms import OpenAI
 from llama_index.llms import Ollama
 from llama_index.llms import OpenAILike
 from lib import constants
+from lib.index.helper import cur_simple_date_time_sec
 
 def get_llm(llm_engine, llm_model, openai_model = None):
     temperature = 0.1
-    if llm_engine == "together":
+    # TODO try out vllm
+    if llm_engine == "gemini":
+        from llama_index.llms.vllm import Gemini
+        print(f"About to instanciate LLM {llm_model} using VLLM ...")
+        return Vllm()
+        pass
+    elif llm_engine == "together":
         if openai_model is None:
             raise Exception("openai_model must be set when using together.ai")
         print(f"About to instanciate LLM {openai_model} using Together.ai ...")
@@ -109,7 +116,22 @@ class MultiOllamaRoundRobin(CustomLLM):
 
     @llm_chat_callback()
     def chat(self, messages, **kwargs):
-        return self.execute_on_free_worker(lambda worker: worker.chat(messages, **kwargs))
+        answer = self.execute_on_free_worker(lambda worker: worker.chat(messages, **kwargs))
+        self.write_to_csv(messages, answer)
+        return answer
+
+    def write_to_csv(self, messages, answer):
+        clz = self.class_name()
+        filename = f"{constants.data_base_dir}/{constants.run_start_time_id}_{clz}_chat_log.csv"
+        import pandas as pd
+        ts = cur_simple_date_time_sec()
+        df = pd.DataFrame({
+            "time_id": [ts for _ in messages],
+            "role": [m.role for m in messages],
+            "message": [m.content for m in messages],
+            "answer": [answer for _ in messages],
+        })
+        df.to_csv(filename, mode='a', header=not os.path.exists(filename), index=False)
     
     @llm_chat_callback()
     def stream_chat(
@@ -145,6 +167,8 @@ def get_port_for_ollama_variant(llm_engine):
         return "11431"
     elif llm_engine == "ollama":
         return "11434"
+    elif llm_engine == "ollama-ssh":
+        return "11400"
     else:
         raise Exception(f"Unknown llm_engine: {llm_engine}. Known are 'ollama', 'ollama-gpu0', 'ollama-gpu1'")
     

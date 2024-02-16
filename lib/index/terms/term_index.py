@@ -14,7 +14,7 @@ def build_term_reference_index(doc: Document):
     global doc_to_term
     global term_to_doc
     terms = terms_from_txt(doc.text)
-    # print(f"Document {doc.doc_id} has {len(terms)} terms ...")
+    # print(f"Document {doc.doc_id} has {len(terms)} terms ..." + doc.text[:100] + " ...")
     for term in terms:
         if term not in term_to_doc:
             term_to_doc[term] = {}
