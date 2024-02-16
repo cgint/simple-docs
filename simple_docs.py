@@ -78,8 +78,19 @@ async def ask_question(query_engine: RetrieverQueryEngine, question: str):
     #     print(f"    Source Node: {n.score} - {n.node_id} - {first_text_chars} - {answer_full.metadata[n.node_id]}")
     # print("\n")
 
+def create_directories():
+    os.makedirs(constants.embed_cache_dir, exist_ok=True)
+    os.makedirs(constants.index_dir, exist_ok=True)
+    os.makedirs(constants.index_dir_done, exist_ok=True)
+    os.makedirs(constants.html_dl_cache_dir, exist_ok=True)
+    os.makedirs(constants.aim_dir, exist_ok=True)
+    os.makedirs(constants.term_data_dir, exist_ok=True)
+    # os.makedirs(constants.vector_storage_dir, exist_ok=True)
+    # os.makedirs(constants.doc_sum_index_dir, exist_ok=True)
+    # os.makedirs(constants.kg_graph_index_dir, exist_ok=True)
 
 async def main():
+    create_directories()
     command, fixed_questions, llm_options, query_engine_options, indexing_engine_options = get_params_from_env()
     if command != "index":
         print(f"Setting callback handler for AIM as global handler ...")

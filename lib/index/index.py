@@ -5,7 +5,7 @@ from lib.index.doc_sum_index import delete_doc_summary_index, operate_on_doc_sum
 
 from lib.index.html import clean_html_content, get_documents_from_urls_as_mirror, get_documents_from_urls
 from lib.index.helper import cur_simple_date_time_sec
-from lib.index.kg_classic import delete_kg_graph_index, operate_on_kg_graph_index
+from lib.index.kg_classic import delete_kg_graph_index, load_kg_graph_index, operate_on_kg_graph_index
 from lib.index.pdf import get_content_from_pdf_file
 from lib.index.terms.term_index import build_term_reference_index, count_terms_per_document, write_term_references_to_file
 from lib.index.terms.terms import terms_from_txt
@@ -53,6 +53,7 @@ def init_consumer_threads(indexing_engine_options):
             "baseArgs": (indexing_engine_options['doc_sum_index_dir'], "DocSumIndex")
         }
     }
+    # load_kg_graph_index(indexing_engine_options["kg_graph_index_dir"])
 
     fan_out_queues = []
     variant = indexing_engine_options["variant"] # e.g. vector-graph-term

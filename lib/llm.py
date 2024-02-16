@@ -40,7 +40,6 @@ def get_llm(llm_engine, llm_model, openai_model = None):
             f"http://{constants.host_ip_ollama}:"+get_port_for_ollama_variant("ollama-gpu1"),
             f"http://{constants.host_ip_ollama}:"+get_port_for_ollama_variant("ollama-gpu0"),
             f"http://{constants.host_ip}:"+get_port_for_ollama_variant("ollama")
-         #   f"http://{constants.host_ip_ollama}:"+get_port_for_ollama_variant("ollama")
         ]
         print(f"About to instanciate LLM {llm_model} on {llm_urls} using Ollama-Instance {llm_engine} ...")
         workers = [

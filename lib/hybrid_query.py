@@ -24,7 +24,7 @@ class HybridRetriever(BaseRetriever):
         def retrieve_parallel(retriever: BaseRetriever, query, **kwargs):
             try:
                 start_time = time.time()
-                print(f"Retrieving {retriever.__class__} ...")
+                # print(f"Retrieving {retriever.__class__} ...")
                 result = retriever.retrieve(query, **kwargs)
                 end_time = time.time()
                 duration_rounded = round(end_time - start_time, 2)

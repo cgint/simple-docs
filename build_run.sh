@@ -4,14 +4,6 @@ docker-compose up -d
 # Define a variable for the image name
 IMAGE_NAME="llama_simple_docs"
 
-mkdir -p data/fastembed_cache
-mkdir -p data/index_inbox
-mkdir -p data/index_inbox/done
-mkdir -p data/html_dl_cache
-mkdir -p data/root_cache_huggingface
-mkdir -p data/term_data
-mkdir -p data/aim
-
 loop_through() {
     local -a QUERY_ENGINE_VARIANTS=($2)  # Convert first argument back to array
     for QUERY_ENGINE_VARIANT in "${QUERY_ENGINE_VARIANTS[@]}"; do
@@ -39,6 +31,7 @@ loop_through() {
             -e "RERANKER_K=5" \
             -e "LLM_ENGINE=ollama" \
             -e "LLM_MODEL=neural-chat" \
+            -e "DATA_PLAYGROUND=git-whoop" \
             $IMAGE_NAME
             # -e "HOST_IP_OLLAMA=192.168.0.99" \
             # -e "LLM_ENGINE=together" \
