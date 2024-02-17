@@ -81,14 +81,17 @@ def register_main_queue_push(q_main: queue.Queue, doc: Document):
 
 def async_index(indexing_engine_options, index_dir, index_dir_done):
     if constants.del_indices_all:
-        print("Deleting neo4j nodes ...")
-        kg_neo4j_delete_all_nodes()
-        print("Deleting chroma entries ...")
-        delete_chroma_collection(indexing_engine_options["collection"])
-        print("Deleting doc_sum index ...")
-        delete_doc_summary_index(indexing_engine_options["doc_sum_index_dir"])
-        print("Deleting kg_graph index ...")
-        delete_kg_graph_index(indexing_engine_options["kg_graph_index_dir"])
+        answer = input("Are you sure you want to delete all indices? (yes/no) ")
+        if answer == "yes":
+            print("\nDeleting on YOUR behalf ...\n")
+            print("Deleting neo4j nodes ...")
+            kg_neo4j_delete_all_nodes()
+            print("Deleting chroma entries ...")
+            delete_chroma_collection(indexing_engine_options["collection"])
+            print("Deleting doc_sum index ...")
+            delete_doc_summary_index(indexing_engine_options["doc_sum_index_dir"])
+            print("Deleting kg_graph index ...")
+            delete_kg_graph_index(indexing_engine_options["kg_graph_index_dir"])
     
     # Start producing
     try:
