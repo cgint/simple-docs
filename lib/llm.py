@@ -6,7 +6,6 @@ from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
 from lib import constants
 from lib.index.helper import cur_simple_date_time_sec
-from llama_index.llms.gemini import Gemini
 
 def get_llm(llm_engine, llm_model, openai_model = None):
     temperature = 0.1

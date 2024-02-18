@@ -1,6 +1,7 @@
 
 from typing import List
 from urllib.parse import urljoin
+from bs4 import BeautifulSoup
 from llama_index.core import Document
 
 from lib.index.web import create_simple_identifier_from_url, get_plain_content_from
@@ -13,29 +14,31 @@ def get_documents_from_urls(urls: List[str], producer_sink=lambda: Document) -> 
         else:
             print(f"Skipping {url} ...")
 
-def extract_content_part_from_html(plain_html_content: str, initial_tag: str = "body", force_html: bool = False) -> str:
+def extract_content_part_from_html(plain_html_content: str, initial_tag: str = "body") -> BeautifulSoup:
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(plain_html_content, 'html.parser')
     # fetch body only
     content_part = soup.find(initial_tag) if soup.find(initial_tag) is not None else None
+    print(f"1) {content_part}")
     if content_part is None:
+        print(f"1a) {content_part}")
         content_part = soup.find('body') if soup.find('body') is not None else None
-    if content_part is None and force_html:
-        content_part = soup
-    else:
-        return ""
+    print(f"2) {content_part}")
+    if content_part is None:
+        return soup
+    print(f"3) {content_part}")
     # remove script and style tags
     for tagsToRemove in content_part(["script", "style"]):
         tagsToRemove.extract()
+    print(f"4) {content_part}")
     return content_part
 
 def clean_html_content(plain_html_content: str) -> str:
-    return extract_content_part_from_html(plain_html_content, "article", True).get_text()
+    return extract_content_part_from_html(plain_html_content, "article").get_text()
 
 def get_urls_from_html_content(plain_html_content: str) -> List[str]:
     content_part = extract_content_part_from_html(plain_html_content)
     return [a["href"] for a in content_part.find_all("a", href=True)]
-
 
 def create_doc_from_plain_html_content(url, plain_html_content: str, mirror_base=None) -> Document:
     meta = {"source_id": url, "source_type": "html", "simple_id": create_simple_identifier_from_url(url)}

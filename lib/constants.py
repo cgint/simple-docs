@@ -16,6 +16,7 @@ html_dl_cache_dir = data_base_dir + "/html_dl_cache"
 ignore_html_dl_cache = os.environ.get("IGNORE_HTML_DL_CACHE", "false").lower() == "true"
 data_playground = os.getenv("DATA_PLAYGROUND", "playground")
 data_dir = data_base_dir + "/playground/" + data_playground
+error_file = data_dir + f"/error_{run_start_time_id}.log"
 index_dir = data_dir + "/index_inbox"
 index_dir_done = data_dir + "/index_inbox_done"
 term_data_dir = data_dir + "/term_data"

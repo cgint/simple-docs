@@ -12,6 +12,7 @@ from lib.index.terms.kg_num_term_neo4j import load_graph_index
 from lib.vector_chroma import load_vector_index
 from llama_index.core.query_engine import RetrieverQueryEngine
 from lib import constants
+from lib.index.error_helper import write_error_to_file
 
 class HybridRetriever(BaseRetriever):
     """Retrieves nodes from multiple retrievers and combines the results."""
@@ -31,7 +32,9 @@ class HybridRetriever(BaseRetriever):
                 size_of_nodes_contents = sum([len(n.node.text) for n in result])
                 print(f"Retrieved {len(result)} nodes (size={size_of_nodes_contents}) from {retriever.__class__} in {duration_rounded} seconds.")
             except Exception as e:
-                print(f"Error retrieving from {retriever.__class__}: {e}")
+                msg = f"Error retrieving from {retriever.__class__}: {e}"
+                print(msg)
+                write_error_to_file(e, msg)
                 result = []
             return result
 

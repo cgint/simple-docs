@@ -3,12 +3,31 @@ import os
 from lib.hybrid_query import get_hybrid_query_engine
 
 from lib.index.helper import cur_simple_date_time_sec
+from lib.index.error_helper import write_error_to_file
 from lib.llm import get_aim_callback, get_embed_model, get_llm
 from lib.index.index import index
 from llama_index.core import Settings
 import llama_index
 from lib import constants
 from llama_index.core.query_engine import RetrieverQueryEngine
+
+# TODOS
+#  - "Some text is provided below. Given the text, extract up to 10 knowledge triplets in the form of"
+#    - Max. 10 kg-triplets good value ?
+#    - Most domain/semantically relevant first!
+#  - Lots of e.g. "h2rpczKP4RKUjjMy0pUCSp/eSdY1CHlF7PI0eOzOQ95xg3UU4ZKMb3Ix2K3g/pIc8h0SXcQ8seac7GOeoX3wKENYJBI+R2T7CQAUCzxq/o/vB07k6o29RZ+kQkkrwQupxvJBofR8ME6bAYM28yJtw2dTqGembOXC7DBEbU12hszX25lnbj+OOP79ajGN0SHreMnyF/cUSIhHTVc3BP5stVonaFc/0xPqkqA8eI1gemzCl4Howw+H4Zq1DHEI7T9pJOc4N84pN/akO7M3iN11TtmyiuQsXHjIARMAJGwAgMQgRMFHfmS4tEsbyaVFKtGcNvDfg0GMTik4mp1kqpGvRFIksTk1bS4+GnCYbup7KxlWVtVJyLCMMjkkmtrEdJj2KbCRiDeP54Fgbysh7tbSgc7mHpHATqEcXUFyaTKEzOOeecPLHpST3RhCdau+vp49pVKDuYYCKt1H8m8o3uEb0PRXhyj0jYSvnDc"
+#   - Should not be considered! Waste of resources!
+#   - Most probably an result of trating an xml as plain text!
+#  - Use json reader for json files!
+#  - strip html better so that
+#      how it compares to scuba diving and safe practice tips<br/></p></td></tr><tr><td class="confluenceTd"><p>Running Spark Applications on Kubernetes
+#    does not become
+#      how it compares to scuba diving and safe practice tipsRunning Spark Applications on Kubernetes
+#    and we created a useless word 'tipsRunning'!
+#   - lots of tuples instead of triplets! e.g. "(Click ID in Conversion Tag, checker checks whether click ID sent to Google)"
+#     - using 'neural-chat' model. although also lots of triplets!
+#     - Better prompt ?
+#     + maybe other delimiter as some triplets contain commas themselves!
 
 exec_id = "ExecID: " + cur_simple_date_time_sec()
 
@@ -66,8 +85,9 @@ async def ask_question(query_engine: RetrieverQueryEngine, question: str):
         # print(answer_full.source_nodes)
         answer = answer_full.response.strip()
     except Exception as e:
+        msg = f"Error processing question '{question}' ... skipping and continuing with next: {e}"
+        write_error_to_file(e, msg)
         answer = f"An error occurred: {e}"
-        print(answer)
     if answer == "" or answer == None:
         answer = "No answer found."
     print(f"Q: {question}\nA: {answer}")

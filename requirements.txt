@@ -9,12 +9,14 @@ llama-index-retrievers-bm25
 llama-index-question-gen-guidance
 llama-index-vector-stores-chroma
 llama-index-readers-file
+llama-index-readers-json
 llama-index-graph-stores-neo4j
 transformers
 torch
 fastembed
 sentence-transformers
 pandas
+Pyarrow
 requests
 pypdf
 beautifulsoup4
