@@ -1,5 +1,5 @@
 import pytest
-from lib.terms import terms_from_txt
+from lib.index.terms.terms import terms_from_txt
 
 def test_basic_terms_extraction():
     text = "Hello, world!"
