@@ -153,7 +153,8 @@ def get_imports(file_path) -> List[str]:
         source = file.read()
         lines = source.splitlines()
 
-    imports = fixed_imports
+    imports = []
+    imports.extend(fixed_imports)
 
     tree = ast.parse(source)
     for node in ast.walk(tree):
@@ -205,8 +206,7 @@ def process_source_file(source_file: str, llm, test_file_postfix: str):
             return
         target_test_file = test_file_from_source_file(source_file, test_file_postfix)
         os.makedirs(os.path.dirname(target_test_file), exist_ok=True)
-        imports = get_imports(source_file)
-        imports = imports + get_method_imports(source_file, methods)
+        imports = get_imports(source_file) + get_method_imports(source_file, methods)
         write_imports_to_file_if_not_exists_or_empty(target_test_file, imports)
         for method_code in methods:
             print("\nMETHOD:\n"+method_code+"\n")
@@ -222,7 +222,7 @@ def process_source_file(source_file: str, llm, test_file_postfix: str):
 from concurrent.futures import ThreadPoolExecutor, as_completed
 if __name__ == "__main__":
     variant = "ollama"
-    test_file_postfix = "ollama5"
+    test_file_postfix = "ollama6"
     if variant == "together":
          # "codellama/CodeLlama-70b-Python-hf") # "mistralai/Mixtral-8x7B-Instruct-v0.1")
         llm = get_llm_together("codellama/CodeLlama-13b-Python-hf")
