@@ -11,19 +11,23 @@ curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dear
     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
 sudo apt install -y curl wget atop docker-compose docker-buildx net-tools python3.11 python3.11-venv python3-pip nvidia-container-toolkit nvidia-driver-545 cuda-drivers-545
+(sudo apt autoremove -y && sudo apt clean all) &
 sudo usermod -a -G docker christian.gintenreiter
 sudo systemctl enable docker
-sudo apt autoremove
+sudo service docker start
 
  
 python3.11 -m venv venv
 source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
+venv/bin/pip install --upgrade pip
+venv/bin/pip install -r requirements.txt --upgrade
 
 echo "INIT: Ollama ..."
 curl -fsSL https://ollama.com/install.sh | sh
-sudo systemctl disable ollama # will be started manually
+echo '[Service]"' >> environment.conf
+echo 'Environment="OLLAMA_HOST=0.0.0.0:11434"' >> environment.conf
+sudo mkdir -p /etc/systemd/system/ollama.service.d
+sudo mv environment.conf /etc/systemd/system/ollama.service.d/environment.conf
+sudo systemctl daemon-reload
+sudo service ollama restart
 ollama pull neural-chat
-
-echo "To start ollama hit: OLLAMA_HOST=0.0.0.0:11434 ollama serve"
