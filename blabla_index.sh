@@ -1,7 +1,7 @@
 #!/bin/bash
 docker-compose up -d
 
-HOST_IP_ADDR=$(ifconfig | grep "192\." | head -n 1 | awk '{print $2}')
+HOST_IP_ADDR=$(ifconfig | egrep "(192\.|10\.)" | head -n 1 | awk '{print $2}')
 echo "HOST_IP_ADDR: $HOST_IP_ADDR"
 
 #  LLM_ENGINE=together LLM_MODEL=mixtral-together OPENAI_MODEL=mistralai/Mixtral-8x7B-Instruct-v0.1 \
