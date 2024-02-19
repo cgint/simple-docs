@@ -1,5 +1,7 @@
 data*
 venv
+aenv
 neo4j_versions
 at_*
 **/__pycache__
+.aider*

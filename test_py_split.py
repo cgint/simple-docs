@@ -1,5 +1,5 @@
 import pytest
-from py_split import get_code_parts_from_text, get_method_imports, get_method_name_from_code
+from py_split import get_code_parts_from_text, get_method_blocks, get_method_blocks_from_source, get_method_imports, get_method_name_from_code
 
 def test_get_one_code_part_from_text():
     the_code = """import pytest
@@ -144,3 +144,15 @@ def test_get_method_imports(source_file: str):
 
     imports = get_method_imports(source_file, methods)
     assert imports == expected_imports
+
+def test_get_method_blocks_ignore_class_methods():
+    source_code = '''
+class SomeClass:
+    def method_inside_class(self):
+        pass
+
+def method_outside_class():
+    pass
+    '''
+    expected_methods = ['def method_outside_class():\n    pass\n']
+    assert get_method_blocks_from_source(source_code) == expected_methods

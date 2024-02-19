@@ -5,7 +5,7 @@ services:
     ports:
       - 8000:8000
     volumes:
-      - ./data/playground/llamaindex-docs/data_chroma:/chroma/chroma
+      - ./data/playground/jira-1/data_chroma:/chroma/chroma
     environment:
       - POSTGRES_USER=chromadb
       - POSTGRES_PASSWORD=secret
@@ -16,8 +16,8 @@ services:
       - 8474:7474
       - 8687:7687
     volumes:
-      - ./data/playground/llamaindex-docs/neo4j_gk_data:/data
-      - ./data/playground/llamaindex-docs/neo4j_gk_logs:/logs
+      - ./data/playground/jira-1/neo4j_gk_data:/data
+      - ./data/playground/jira-1/neo4j_gk_logs:/logs
       - ./neo4j_versions/plugins:/plugins
       #- ./neo4j_versions/conf:/var/lib/neo4j/conf
     environment:

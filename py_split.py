@@ -94,17 +94,25 @@ def get_llm_openai(openai_model: str) -> OpenAI:
 def get_method_blocks(file_path):
     with open(file_path, "r") as file:
         source = file.read()
-        lines = source.splitlines()
+    return get_method_blocks_from_source(source)
 
-    tree = ast.parse(source)
+def get_method_blocks_from_source(source_code: str) -> List[str]:
+    lines = source_code.splitlines()
+
+    tree = ast.parse(source_code)
     method_blocks = []
 
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
-            start_line = node.lineno - 1
-            end_line = node.end_lineno
-            method_source = "\n".join(lines[start_line:end_line])
-            method_blocks.append(method_source)
+            # Check if the parent node is a ClassDef
+            for parent in ast.iter_child_nodes(tree):
+                if isinstance(parent, ast.ClassDef) and node in parent.body:
+                    break
+            else:
+                start_line = node.lineno - 1
+                end_line = node.end_lineno
+                method_source = "\n".join(lines[start_line:end_line]) + "\n"
+                method_blocks.append(method_source)
 
     return method_blocks
 

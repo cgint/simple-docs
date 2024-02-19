@@ -221,7 +221,7 @@ def get_hybrid_query_engine(query_engine_options) -> RetrieverQueryEngine:
         qe = RetrieverQueryEngine.from_args(
             retriever=HybridRetriever(retrievers),
             node_postprocessors=post_processors,
-            response_mode=ResponseMode.TREE_SUMMARIZE,
+            response_mode=ResponseMode.REFINE,
             use_async=True
         )
         qe = wrap_in_sub_question_engine(qe)

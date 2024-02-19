@@ -28,3 +28,4 @@ aim
 jwt
 guidance
 openai
+marshmallow
