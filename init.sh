@@ -16,7 +16,7 @@ curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dear
     && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-sudo apt update && sudo apt install -y nvidia-container-toolkit nvidia-driver-545
+sudo apt update && sudo apt upgrade -y && sudo apt install -y nvidia-container-toolkit nvidia-driver-545
 sudo systemctl daemon-reload
 sudo service docker restart
 
