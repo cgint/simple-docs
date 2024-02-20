@@ -7,6 +7,19 @@ from llama_index.llms.openai import OpenAI
 from lib import constants
 from lib.index.helper import cur_simple_date_time_sec
 
+def get_llm_multi(llm_urls, llm_engine, llm_model, temperature, openai_model = None):
+        print(f"About to instanciate LLM {llm_model} on {llm_urls} using Ollama-Instance {llm_engine} ...")
+        workers = [
+            Ollama(
+                model=llm_model, 
+                base_url=llm_url, 
+                request_timeout=900, 
+                temperature=temperature,
+                additional_kwargs={"num_predict": 1024}
+            )
+            for llm_url in llm_urls
+        ]
+        return MultiOllamaRoundRobin(workers)
 def get_llm(llm_engine, llm_model, openai_model = None):
     temperature = 0.1
     if llm_engine == "together":
@@ -40,18 +53,15 @@ def get_llm(llm_engine, llm_model, openai_model = None):
             f"http://{constants.host_ip_ollama}:"+get_port_for_ollama_variant("ollama-gpu0"),
             f"http://{constants.host_ip}:"+get_port_for_ollama_variant("ollama")
         ]
-        print(f"About to instanciate LLM {llm_model} on {llm_urls} using Ollama-Instance {llm_engine} ...")
-        workers = [
-            Ollama(
-                model=llm_model, 
-                base_url=llm_url, 
-                request_timeout=900, 
-                temperature=temperature,
-                additional_kwargs={"num_predict": 1024}
-            )
-            for llm_url in llm_urls
+        return get_llm_multi(llm_urls, llm_engine, llm_model, temperature, openai_model)
+    elif llm_engine == "ollama-multi-local-4":
+        llm_urls = [
+            f"http://{constants.host_ip}:11431",
+            f"http://{constants.host_ip}:11432",
+            f"http://{constants.host_ip}:11433",
+            f"http://{constants.host_ip}:11434",
         ]
-        return MultiOllamaRoundRobin(workers)
+        return get_llm_multi(llm_urls, llm_engine, llm_model, temperature, openai_model)
     elif llm_engine.startswith("ollama"):
         api_base_url = f"http://{constants.host_ip_ollama}:{get_port_for_ollama_variant(llm_engine)}"
         print(f"About to instanciate LLM {llm_model} on {api_base_url} using Ollama-Instance {llm_engine} ...")
