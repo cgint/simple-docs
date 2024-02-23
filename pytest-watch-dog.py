@@ -10,6 +10,7 @@ class TestRunner(FileSystemEventHandler):
 
 if __name__ == "__main__":
     path = sys.argv[1] if len(sys.argv) > 1 else '.'
+    print(f"Watching {path} for changes ...")
     event_handler = TestRunner()
     observer = Observer()
     observer.schedule(event_handler, path, recursive=True)

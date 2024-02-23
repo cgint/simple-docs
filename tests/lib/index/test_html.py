@@ -1,6 +1,6 @@
 from llama_index_client import Document
 import pytest
-from lib.index.html import (get_documents_from_urls, extract_content_part_from_html,
+from lib.index.html import (extract_content_part_from_html,
                               clean_html_content, get_urls_from_html_content,
                               create_doc_from_plain_html_content)
 from unittest.mock import Mock, patch
@@ -17,10 +17,13 @@ import lib.index.html  # Assuming this is the module where get_documents_from_ur
 def test_extract_content_part_from_html(input_html, content_part):
     assert str(extract_content_part_from_html(input_html)) == content_part
 
-def test_clean_html_content():
-    html_content = "<html><body><article>Test content</article></body></html>"
-    result = clean_html_content(html_content)
-    assert result.strip() == "Test content"
+@pytest.mark.parametrize("html_content, clean_content", [
+    ("<html><body><article>Test content</article></body></html>", "Test content"),
+    ("<html><body><table><tr><td>Cell11  </td><td>Cell12</td></tr><tr><td> Cell21</td><td>Cell22</td></tr></table></article></body></html>",
+     "Cell11 Cell12 Cell21 Cell22"),
+])
+def test_clean_html_content(html_content, clean_content):
+    assert clean_html_content(html_content) == clean_content
 
 def test_get_urls_from_html_content():
     html_content = '<html><body><a href="http://example.com">Example</a></body></html>'

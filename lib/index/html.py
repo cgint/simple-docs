@@ -29,7 +29,7 @@ def extract_content_part_from_html(plain_html_content: str, initial_tag: str = "
     return content_part
 
 def clean_html_content(plain_html_content: str) -> str:
-    return extract_content_part_from_html(plain_html_content, "article").get_text()
+    return extract_content_part_from_html(plain_html_content, "article").get_text(separator=" ", strip=True).strip()
 
 def get_urls_from_html_content(plain_html_content: str) -> List[str]:
     content_part = extract_content_part_from_html(plain_html_content)
