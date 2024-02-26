@@ -17,6 +17,12 @@ def load_vector_index(vector_storage_dir: str) -> VectorStoreIndex:
         storage_context=load_vector_index_storage_context(vector_storage_dir)
     )
 
+def delete_vector_index(vector_storage_dir: str):
+    print(f"Deleting vector at {vector_storage_dir} ...")
+    if os.path.exists(vector_storage_dir):
+        import shutil
+        shutil.rmtree(vector_storage_dir)
+
 def persist_vector_index(vector_index: VectorStoreIndex, vector_storage_dir: str):
     print(f"Storing vector-index to {vector_storage_dir} ...")
     vector_index.storage_context.persist(persist_dir=vector_storage_dir)
