@@ -8,5 +8,4 @@ sudo apt update && sudo apt upgrade -y && sudo apt install -y nvidia-container-t
 sudo systemctl daemon-reload
 sudo service docker restart
 
-
 echo "Now is the time to restart ... NVIDIA-Driver needs a restart to take effect."

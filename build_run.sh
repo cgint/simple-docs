@@ -44,7 +44,7 @@ loop_through() {
     done
 }
 
-HOST_IP_ADDR=$(ifconfig | egrep "(192\.|10\.)" | head -n 1 | awk '{print $2}')
+HOST_IP_ADDR=$(ifconfig | egrep "inet (192\.|10\.)" | head -n 1 | awk '{print $2}')
 echo "HOST_IP_ADDR: $HOST_IP_ADDR"
 
 # Convert arrays to strings before passing to function
