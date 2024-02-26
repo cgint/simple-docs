@@ -233,9 +233,13 @@ def wrap_in_sub_question_engine(query_engine: RetrieverQueryEngine) -> Retriever
     from llama_index.core.query_engine import SubQuestionQueryEngine
     from llama_index.core.tools import QueryEngineTool, ToolMetadata
     from llama_index.question_gen.guidance import GuidanceQuestionGenerator
+    from guidance.models import TransformersChat
+    guidance_llm = TransformersChat(model="mistralai/Mistral-7B-v0.1", device="mps")
+    # guidance_llm = TransformersChat(model="Intel/neural-chat-7b-v3-1", device="mps")
     from guidance.models import OpenAI
+    guidance_llm = OpenAI(model=constants.guidance_gpt_version)
     return SubQuestionQueryEngine.from_defaults(
-        question_gen = GuidanceQuestionGenerator.from_defaults(guidance_llm=OpenAI(model=constants.guidance_gpt_version)),
+        question_gen = GuidanceQuestionGenerator.from_defaults(guidance_llm=guidance_llm),
         query_engine_tools=[
             QueryEngineTool(
                 query_engine=query_engine,

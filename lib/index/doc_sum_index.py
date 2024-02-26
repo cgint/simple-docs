@@ -16,7 +16,7 @@ def delete_doc_summary_index(doc_sum_index_dir: str):
 
 def persist_index(idx: DocumentSummaryIndex, doc_sum_index_dir: str):
     doc_count = len(idx.docstore.docs)
-    print(f"Persisting {doc_count} docs for doc_sum_index to {doc_sum_index_dir} ...")
+    print(f"Persisting {doc_count} docs to {doc_sum_index_dir} ...")
     idx.storage_context.persist(persist_dir=doc_sum_index_dir)
 
 def operate_on_doc_sum_index(doc_sum_index_dir: str, operation=lambda: None) -> DocumentSummaryIndex:
