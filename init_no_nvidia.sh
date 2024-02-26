@@ -20,4 +20,4 @@ source venv/bin/activate
 venv/bin/pip install --upgrade pip
 venv/bin/pip install -r requirements.txt --upgrade
 
-echo "Now is the time to restart ... NVIDIA-Driver needs a restart to take effect."
+echo "Now is the time to restart ... Just to be sure everything is up to date."
