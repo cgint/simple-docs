@@ -11,13 +11,3 @@ sudo apt autoremove -y && sudo apt clean all
 sudo usermod -a -G docker christian.gintenreiter
 sudo systemctl enable docker
 sudo service docker start
-
-sudo systemctl daemon-reload
-sudo service docker restart
-
-python3.11 -m venv venv
-source venv/bin/activate
-venv/bin/pip install --upgrade pip
-venv/bin/pip install -r requirements.txt --upgrade
-
-echo "Now is the time to restart ... Just to be sure everything is up to date."
