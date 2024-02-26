@@ -7,7 +7,7 @@ echo "PLAYGROUND: $PLAYGROUND"
 
 
 # Only execute 'docker-compose up -d' when /$PLAYGROUND/ can be found in docker-compose.yml
-if grep -q $PLAYGROUND docker-compose.yml; then
+if grep -q $PLAYGROUND docker-compose.yaml; then
   echo "docker-compose up -d"
   docker-compose up -d
 else
