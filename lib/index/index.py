@@ -20,6 +20,7 @@ from lib import constants
 import queue
 import threading
 from tqdm import tqdm
+from llama_index.core.node_parser import SentenceSplitter
 
 main_queue_size = 1
 worker_queue_sizes = 5
@@ -81,6 +82,17 @@ def register_main_queue_push(q_main: queue.Queue, doc: Document):
     # print(f"Pushing document '{doc_id}' to main_queue (size={q_size}) ...")
     q_main.put(doc)
 
+def split_text_and_register_main_queue_push(q_main: queue.Queue, doc: Document, splitter: SentenceSplitter):
+    chunks = splitter.split_text(doc.text)
+    chunks_len = len(chunks)
+    if chunks_len == 1:
+        register_main_queue_push(q_main, doc)
+        return
+    print(f"Splitting document into {chunks_len} chunks. Size: '{len(doc.text)}, ID: '{doc.doc_id}' metadata:'{doc.metadata}' ...")
+    for idx, chunk in enumerate(chunks):
+        additional_meta = {"chunk": f"{idx+1}/{chunks_len}"}
+        register_main_queue_push(q_main, Document(text=chunk, metadata={**doc.metadata, **additional_meta}))
+
 def async_index(indexing_engine_options, index_dir, index_dir_done):
     if constants.del_indices_all:
         answer = input("Are you sure you want to delete all indices? (yes/no) ")
@@ -98,7 +110,8 @@ def async_index(indexing_engine_options, index_dir, index_dir_done):
     # Start producing
     try:
         q_main, consumer_threads = init_consumer_threads(indexing_engine_options)
-        index_produce_documents(constants.max_files_to_index_per_run, index_dir, index_dir_done, lambda doc: register_main_queue_push(q_main, doc))
+        splitter = SentenceSplitter.from_defaults(chunk_size=500, paragraph_separator="\n\n")
+        index_produce_documents(constants.max_files_to_index_per_run, index_dir, index_dir_done, lambda doc: split_text_and_register_main_queue_push(q_main, doc, splitter))
     finally:
         # Tell consumer to stop and wait for it to finish
         print("Telling consumers to finish once their queues are empty ...")
