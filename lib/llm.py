@@ -158,9 +158,9 @@ class MultiOllamaRoundRobin(CustomLLM):
 
 def get_port_for_ollama_variant(llm_engine):
     if llm_engine == "ollama-gpu0":
-        return "11430"
-    elif llm_engine == "ollama-gpu1":
         return "11431"
+    elif llm_engine == "ollama-gpu1":
+        return "11432"
     elif llm_engine == "ollama":
         return "11434"
     elif llm_engine == "ollama-ssh":
