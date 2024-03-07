@@ -38,7 +38,7 @@ def init_service_context(llm_options, callback_handler = None):
     embed = get_embed_model(llm_options["embed_engine"], llm_options["embed_model"])
     Settings.llm = llm
     Settings.embed_model = embed
-    Settings.chunk_size = 512
+    Settings.chunk_size = 1024
 
 def get_params_from_env():
     command = os.environ.get("PARAM_COMMAND", "")

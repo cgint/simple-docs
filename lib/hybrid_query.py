@@ -1,5 +1,5 @@
 import time
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.schema import NodeWithScore
 from llama_index.core import QueryBundle
@@ -16,23 +16,23 @@ from lib.index.error_helper import write_error_to_file
 
 class HybridRetriever(BaseRetriever):
     """Retrieves nodes from multiple retrievers and combines the results."""
-    def __init__(self, retrievers: List[BaseRetriever]):
+    def __init__(self, retrievers: Tuple[str, List[BaseRetriever]]):
         self.retrievers = retrievers
         super().__init__()
 
     def _retrieve(self, query, **kwargs):
 
-        def retrieve_parallel(retriever: BaseRetriever, query, **kwargs):
+        def retrieve_parallel(name: str, retriever: BaseRetriever, query, **kwargs):
             try:
                 start_time = time.time()
-                # print(f"Retrieving {retriever.__class__} ...")
+                # print(f"Retrieving '{name}' {retriever.__class__} ...")
                 result = retriever.retrieve(query, **kwargs)
                 end_time = time.time()
                 duration_rounded = round(end_time - start_time, 2)
                 size_of_nodes_contents = sum([len(n.node.text) for n in result])
-                print(f"Retrieved {len(result)} nodes (size={size_of_nodes_contents}) from {retriever.__class__} in {duration_rounded} seconds.")
+                print(f"Retrieved {len(result)} nodes (size={size_of_nodes_contents}) from '{name}' {retriever.__class__} in {duration_rounded} seconds.")
             except Exception as e:
-                msg = f"Error retrieving from {retriever.__class__}: {e}"
+                msg = f"Error retrieving from '{name}' {retriever.__class__}: {e}"
                 print(msg)
                 write_error_to_file(e, msg)
                 result = []
@@ -41,7 +41,7 @@ class HybridRetriever(BaseRetriever):
         def retrieve_in_parallel(retrievers, query, **kwargs):
             # print(f"Retrieving from {len(retrievers)} retrievers in parallel ...")
             with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-                futures = [executor.submit(retrieve_parallel, retriever, query, **kwargs) for retriever in retrievers]
+                futures = [executor.submit(retrieve_parallel, name, retriever, query, **kwargs) for name, retriever in retrievers]
                 results = [future.result() for future in concurrent.futures.as_completed(futures)]
             return results
 
@@ -166,15 +166,15 @@ def get_hybrid_query_engine(query_engine_options) -> RetrieverQueryEngine:
             print(f"Pushing {len(doc_sum_index.docstore.docs)} from doc_sum_index to BM25Retriever.")
             retriever = BM25Retriever.from_defaults(docstore=doc_sum_index.docstore, similarity_top_k=retriever_k)
             print(f"Done. Took {round(time.time() - start_time, 2)} seconds.")
-            retrievers.append(retriever)
+            retrievers.append(("bm25", retriever))
         if "kggraph" in variant:
-            retrievers.append(load_kg_graph_index(query_engine_options["kg_graph_index_dir"]).as_retriever(similarity_top_k=retriever_k))
+            retrievers.append(("kggraph", load_kg_graph_index(query_engine_options["kg_graph_index_dir"]).as_retriever(similarity_top_k=retriever_k)))
         if "vector" in variant:
-            retrievers.append(load_vector_index(query_engine_options["collection"]).as_retriever(similarity_top_k=retriever_k))
+            retrievers.append(("vector", load_vector_index(query_engine_options["collection"]).as_retriever(similarity_top_k=retriever_k)))
         if "docsum" in variant:
-            retrievers.append(doc_sum_index.as_retriever(similarity_top_k=retriever_k))
+            retrievers.append(("docsum", doc_sum_index.as_retriever(similarity_top_k=retriever_k)))
         if "graph" in variant:
-            retrievers.append(load_graph_index(query_engine_options["graph_db"]).as_retriever(similarity_top_k=retriever_k))
+            retrievers.append(("graph", load_graph_index(query_engine_options["graph_db"]).as_retriever(similarity_top_k=retriever_k, include_text=False)))
         
         reranker_k = int(query_engine_options["reranker_k"])
         if "none" == reranker_model:
@@ -221,7 +221,7 @@ def get_hybrid_query_engine(query_engine_options) -> RetrieverQueryEngine:
         qe = RetrieverQueryEngine.from_args(
             retriever=HybridRetriever(retrievers),
             node_postprocessors=post_processors,
-            response_mode=ResponseMode.TREE_SUMMARIZE,
+            response_mode=ResponseMode.REFINE,
             use_async=True
         )
         qe = wrap_in_sub_question_engine(qe)

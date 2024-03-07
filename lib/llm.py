@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 from llama_index.llms.openai_like import OpenAILike
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
+from llama_index.llms.groq import Groq
 from lib import constants
 from lib.index.helper import cur_simple_date_time_sec
 
@@ -20,6 +21,7 @@ def get_llm_multi(llm_urls, llm_engine, llm_model, temperature, openai_model = N
             for llm_url in llm_urls
         ]
         return MultiOllamaRoundRobin(workers)
+
 def get_llm(llm_engine, llm_model, openai_model = None):
     temperature = 0.1
     if llm_engine == "together":
@@ -47,6 +49,9 @@ def get_llm(llm_engine, llm_model, openai_model = None):
             api_key=os.environ["OPENAI_API_KEY"],
             temperature=temperature
         )
+    elif llm_engine == "groq":
+        print(f"About to instanciate LLM {openai_model} using Groq-Cloud ...")
+        return Groq(model=llm_model, api_key=os.environ.get("GROQ_API_KEY"))
     elif llm_engine == "ollama-multi":
         llm_urls = [
             f"http://{constants.host_ip_ollama}:"+get_port_for_ollama_variant("ollama-gpu1"),

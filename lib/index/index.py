@@ -110,7 +110,7 @@ def async_index(indexing_engine_options, index_dir, index_dir_done):
     # Start producing
     try:
         q_main, consumer_threads = init_consumer_threads(indexing_engine_options)
-        splitter = SentenceSplitter.from_defaults(chunk_size=500, paragraph_separator="\n\n")
+        splitter = SentenceSplitter.from_defaults(chunk_size=128, chunk_overlap=20, paragraph_separator="\n\n")
         index_produce_documents(constants.max_files_to_index_per_run, index_dir, index_dir_done, lambda doc: split_text_and_register_main_queue_push(q_main, doc, splitter))
     finally:
         # Tell consumer to stop and wait for it to finish
