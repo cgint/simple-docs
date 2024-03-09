@@ -1,4 +1,5 @@
 import os
+from typing import Set
 from llama_index.core import DocumentSummaryIndex, StorageContext, get_response_synthesizer, load_index_from_storage
 from llama_index.core.query_engine import BaseQueryEngine
 
@@ -29,6 +30,12 @@ def operate_on_doc_sum_index(doc_sum_index_dir: str, operation=lambda: None) -> 
         persist_index(idx, doc_sum_index_dir)
         atexit.unregister(atexist_reg_callable)
     return idx
+
+def get_doc_sum_index_doc_ids(doc_sum_index_dir: str, extract_key_from_doc=lambda: str) -> Set[str]:
+    s = set()
+    for doc in load_doc_sum_index(doc_sum_index_dir).docstore.docs.values():
+        s.add(extract_key_from_doc(doc))
+    return s
 
 def get_doc_sum_index(doc_sum_index_dir) -> DocumentSummaryIndex:
     return load_doc_sum_index(doc_sum_index_dir)

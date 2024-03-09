@@ -1,12 +1,12 @@
 from concurrent.futures import FIRST_COMPLETED, ALL_COMPLETED, ThreadPoolExecutor, wait
 import os
 from time import sleep
-from lib.index.doc_sum_index import delete_doc_summary_index, operate_on_doc_sum_index, persist_index
+from lib.index.doc_sum_index import delete_doc_summary_index, get_doc_sum_index_doc_ids, operate_on_doc_sum_index, persist_index
 
 from lib.index.html import clean_html_content, get_documents_from_urls_as_mirror, get_documents_from_urls
 from lib.index.helper import cur_simple_date_time_sec
 from lib.index.error_helper import write_error_to_file
-from lib.index.kg_classic import delete_kg_graph_index, operate_on_kg_graph_index
+from lib.index.kg_classic import delete_kg_graph_index, get_kg_graph_doc_source_ids, operate_on_kg_graph_index
 from lib.index.pdf import get_content_from_pdf_file
 from lib.index.terms.term_index import build_term_reference_index, count_terms_per_document, write_term_references_to_file
 from lib.index.terms.terms import terms_from_txt
@@ -15,7 +15,7 @@ from lib.index.helper import list_files
 from lib.json import get_content_from_json_file
 from lib.vector_chroma import delete_chroma_collection, operate_on_vector_index
 from llama_index.core import Document, KnowledgeGraphIndex
-from typing import List
+from typing import List, Set
 from lib import constants
 import queue
 import threading
@@ -149,7 +149,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import queue
 import threading
 
-def index_consume_documents_threading_workers(log_name, q, persist=lambda: None, process=lambda x: None, max_threads=1, max_queued_tasks=5):
+def index_consume_documents_threading_workers(log_name, q, ignore_source_keys: Set[str], persist=lambda: None, process=lambda x: None, max_threads=1, max_queued_tasks=5):
     counter = 0
     futures = set()
 
@@ -157,10 +157,16 @@ def index_consume_documents_threading_workers(log_name, q, persist=lambda: None,
         while True:
             counter += 1
 
-            doc = q.get()
+            doc: Document = q.get()
             if doc is None:
                 q.task_done()
-                break  # Exit if None is received
+                break
+
+            doc_key = extract_key_from_doc(doc)
+            if doc_key and doc_key in ignore_source_keys:
+                q.task_done()
+                print(f" {log_name} - q(size={q.qsize()}) - Skipping document with doc_key {doc_key} - is contained in ignore_source_keys ...")
+                continue
 
             # Check if we need to wait for some tasks to complete
             unfinished_count = len({future for future in futures if not future.done()})
@@ -184,23 +190,27 @@ def index_consume_documents_threading_workers(log_name, q, persist=lambda: None,
             future.result()  # This also helps in raising exceptions if any occurred
 
 def index_consume_documents_on_vector(collection, log_name, q):
-    processor = lambda idx: index_consume_documents(log_name, q, lambda doc: try_refresh_ref_docs_retry_max(RETRY_ATTEMPTS_MAX, idx, doc))
+    processor = lambda idx: index_consume_documents(log_name, q, set(), lambda doc: try_refresh_ref_docs_retry_max(RETRY_ATTEMPTS_MAX, idx, doc))
     operate_on_vector_index(collection, processor)
 
 def index_consume_documents_on_doc_sum(storage_dir, log_name, q):
-    processor = lambda idx: index_consume_documents_threading_workers(log_name, q, 
+    doc_keys_before_indexing = get_doc_sum_index_doc_ids(storage_dir, lambda doc: extract_key_from_doc(doc))
+    print(f"doc_sum: doc_keys_before_indexing: {len(doc_keys_before_indexing)}, examples: {list(doc_keys_before_indexing)[:5]}")
+    processor = lambda idx: index_consume_documents_threading_workers(log_name, q, doc_keys_before_indexing,
         lambda: persist_index(idx, storage_dir), 
         lambda doc: try_refresh_ref_docs_retry_max(RETRY_ATTEMPTS_MAX, idx, doc), 
         consume_documents_threading_workers)
     operate_on_doc_sum_index(storage_dir, processor)
 
 def index_consume_documents_on_graph(collection, log_name, q):
-    processor = lambda idx: index_consume_documents(log_name, q, lambda doc: idx_update_doc_on_graph(idx, doc))
+    processor = lambda idx: index_consume_documents(log_name, q, set(), lambda doc: idx_update_doc_on_graph(idx, doc))
     operate_on_graph_index(collection, processor)
 
 def index_consume_documents_on_kg_graph(kg_graph_index_dir, log_name, q):
     # processor = lambda idx: index_consume_documents(log_name, q, lambda doc: try_refresh_ref_docs_retry_max(RETRY_ATTEMPTS_MAX, idx, doc))
-    processor = lambda idx: index_consume_documents_threading_workers(log_name, q, 
+    doc_keys_before_indexing = get_kg_graph_doc_source_ids(kg_graph_index_dir, lambda doc: extract_key_from_doc(doc))
+    print(f"kg_graph: doc_keys_before_indexing: {len(doc_keys_before_indexing)}, examples: {list(doc_keys_before_indexing)[:5]}")
+    processor = lambda idx: index_consume_documents_threading_workers(log_name, q, doc_keys_before_indexing,
         lambda: persist_index(idx, kg_graph_index_dir), 
         lambda doc: try_refresh_ref_docs_retry_max(RETRY_ATTEMPTS_MAX, idx, doc), 
         consume_documents_threading_workers)
@@ -208,21 +218,38 @@ def index_consume_documents_on_kg_graph(kg_graph_index_dir, log_name, q):
     # operate_on_doc_sum_index(storage_dir, processor)
 
 def index_consume_documents_on_term_index(log_name, q):
-    index_consume_documents(log_name, q, build_term_reference_index)
+    index_consume_documents(log_name, q, set(), build_term_reference_index)
 
 def idx_update_doc_on_graph(idx: KnowledgeGraphIndex, doc: Document):
     terms = terms_from_txt(doc.text)
     for term in terms:
         idx.upsert_triplet_and_node((term, "in", doc.metadata["source_id"]), doc)
 
-def index_consume_documents(log_name, q, process=lambda: None):
+def extract_key_from_doc(doc: Document) -> str:
+    md = doc.metadata
+    if md is None:
+        return None
+    id = ""
+    for k, v in md.items():
+        id += f"{k}:{v} "
+    id = id.strip()
+    return id if id != "" else None
+
+def index_consume_documents(log_name, q, ignore_doc_keys: Set[str], process=lambda: None):
     counter = 0
     while True:
-        doc = q.get()
         counter += 1
+        doc = q.get()
         if doc is None:
             q.task_done()
             break  # Exit if None is received
+        
+        doc_key = extract_key_from_doc(doc)
+        if doc_key and doc_key in ignore_doc_keys:
+            q.task_done()
+            print(f" {log_name} - q(size={q.qsize()}) - Skipping document #{counter} with doc_key {doc_key} - is contained in ignore_doc_keys ...")
+            continue
+
         print(f" {log_name} - q(size={q.qsize()}) - Indexing document #{counter} with id {doc.doc_id} ...")
         process(doc)
         q.task_done()

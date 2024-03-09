@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Set
 from llama_index.core import Document, KnowledgeGraphIndex, StorageContext
 from llama_index.core.query_engine import BaseQueryEngine
 from llama_index.core import load_index_from_storage
@@ -28,6 +28,12 @@ def load_kg_graph_index(kg_graph_storage_dir: str) -> KnowledgeGraphIndex:
     return load_index_from_storage(
         storage_context=load_kg_graph_index_storage_context(kg_graph_storage_dir)
     )
+
+def get_kg_graph_doc_source_ids(graph_storage_dir: str, extract_key_from_doc=lambda: str) -> Set[str]:
+    s = set()
+    for doc in load_kg_graph_index(graph_storage_dir).docstore.docs.values():
+        s.add(extract_key_from_doc(doc))
+    return s
 
 def get_kg_graph_index(graph_storage_dir: str) -> KnowledgeGraphIndex:
     return load_kg_graph_index(graph_storage_dir)
