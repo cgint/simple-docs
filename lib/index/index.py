@@ -165,7 +165,7 @@ def index_consume_documents_threading_workers(log_name, q, ignore_source_keys: S
             doc_key = extract_key_from_doc(doc)
             if doc_key and doc_key in ignore_source_keys:
                 q.task_done()
-                print(f" {log_name} - q(size={q.qsize()}) - Skipping document with doc_key {doc_key} - is contained in ignore_source_keys ...")
+                # print(f" {log_name} - q(size={q.qsize()}) - Skipping document with doc_key {doc_key} - is contained in ignore_source_keys ...")
                 continue
 
             # Check if we need to wait for some tasks to complete
@@ -247,7 +247,7 @@ def index_consume_documents(log_name, q, ignore_doc_keys: Set[str], process=lamb
         doc_key = extract_key_from_doc(doc)
         if doc_key and doc_key in ignore_doc_keys:
             q.task_done()
-            print(f" {log_name} - q(size={q.qsize()}) - Skipping document #{counter} with doc_key {doc_key} - is contained in ignore_doc_keys ...")
+            #print(f" {log_name} - q(size={q.qsize()}) - Skipping document #{counter} with doc_key {doc_key} - is contained in ignore_doc_keys ...")
             continue
 
         print(f" {log_name} - q(size={q.qsize()}) - Indexing document #{counter} with id {doc.doc_id} ...")
@@ -273,7 +273,7 @@ def index_produce_documents(max_files_to_process: int, index_dir: str, index_dir
     tqdm_file = constants.data_dir + f"/tqdm_{run_index_time}.log"
     tqdm_fh = open(tqdm_file, "w")
     try:
-        for file in tqdm(files_to_index, file=tqdm_fh, desc="Indexing documents", total=full_file_count, unit="doc"):
+        for file in tqdm(files_to_index, file=tqdm_fh, desc="Processing files", total=full_file_count, unit="doc"):
             file_full_path = file
             file_extension = file_full_path.split('.')[-1]
             if file_extension not in known_extensions:
@@ -286,11 +286,11 @@ def index_produce_documents(max_files_to_process: int, index_dir: str, index_dir
             if max_files_to_process is not None and file_counter > max_files_to_process:
                 print(f"Max files to process ({max_files_to_process}) reached. Will stop producing tasks ...")
                 break
-            print(f"Indexing {file_counter}/{full_file_count} {file} ...")
+            print(f"Processing file {file_counter}/{full_file_count} {file} ...")
             try:
                 process_file(file, file_full_path, file_extension, index_dir, index_dir_done, producer_sink)
             except Exception as e:
-                msg = f"Error processing {file_full_path} ... skipping and continuing with next: {e}"
+                msg = f"Error processing file {file_full_path} ... skipping and continuing with next: {e}"
                 print(msg)
                 write_error_to_file(e, msg)
     finally:
