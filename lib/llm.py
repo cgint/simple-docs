@@ -59,6 +59,12 @@ def get_llm(llm_engine, llm_model, openai_model = None):
             f"http://{constants.host_ip}:"+get_port_for_ollama_variant("ollama")
         ]
         return get_llm_multi(llm_urls, llm_engine, llm_model, temperature, openai_model)
+    elif llm_engine == "ollama-multi-local-2":
+        llm_urls = [
+            f"http://{constants.host_ip_ollama}:"+get_port_for_ollama_variant("ollama-gpu1"),
+            f"http://{constants.host_ip_ollama}:"+get_port_for_ollama_variant("ollama-gpu0")
+        ]
+        return get_llm_multi(llm_urls, llm_engine, llm_model, temperature, openai_model)
     elif llm_engine == "ollama-multi-local-4":
         llm_urls = [
             f"http://{constants.host_ip}:11431",
