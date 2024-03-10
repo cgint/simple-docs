@@ -18,6 +18,7 @@ loop_through() {
         docker run -it --rm \
             --name "simple_docs" \
             --privileged \
+            --ipc=host \
             -v "./data:/data" \
             -v "./data_root_nltk:/root/nltk_data" \
             -v "./data/root_cache_huggingface:/root/.cache/huggingface" \
