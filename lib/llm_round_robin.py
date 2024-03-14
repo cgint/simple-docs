@@ -47,7 +47,7 @@ class MultiOllamaRoundRobin(CustomLLM):
 
     def write_to_csv(self, messages, answer):
         clz = self.class_name()
-        filename = f"{constants.data_base_dir}/{constants.run_start_time_id}_{clz}_chat_log_robin.csv"
+        filename = f"{constants.data_dir}/{constants.run_start_time_id}_{clz}_chat_log_robin.csv"
         import pandas as pd
         ts = cur_simple_date_time_sec()
         df = pd.DataFrame({

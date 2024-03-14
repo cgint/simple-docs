@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Any, Callable, List, Sequence
 from lib import constants
 from lib.index.helper import cur_simple_date_time_sec
@@ -16,13 +17,16 @@ class MultiLlmFallback(CustomLLM):
     def execute_and_fallback_on_error(self, task_func: Callable):
         exceptions = []
         for chosen_index, llm in enumerate(self.llm_prio_list):
+            start_time_ms = int(round(time.time() * 1000))
             try:
                 answer = task_func(llm)
-                message = f" -- MultiLlmFallback --- --- --- --- --- --- --- --- --- --- -- Successful answer from LLM on list-index {chosen_index} --- --- --- -- --- --- ---"
+                duration_sec = str((int(round(time.time() * 1000)) - start_time_ms) / 1000)
+                message = f" -- MultiLlmFallback --- --- --- --- --- --- --- --- --- --- -- Successful answer from LLM on list-index {chosen_index} after {duration_sec} sec --- --- --- -- --- --- ---"
                 message += f" ### Exceptions: {exceptions}" if exceptions else ""
                 print(message)
                 return answer
             except Exception as e:
+                duration_sec = str((int(round(time.time() * 1000)) - start_time_ms) / 1000)
                 print(f" XXX --- MultiLlmFallback --- Exception from LLM on list-index {chosen_index} --- XXX - {e} - XXX ---")
                 exceptions.append(e)
         
@@ -39,7 +43,7 @@ class MultiLlmFallback(CustomLLM):
 
     def write_to_csv(self, messages, answer):
         clz = self.class_name()
-        filename = f"{constants.data_base_dir}/{constants.run_start_time_id}_{clz}_chat_log_fallback.csv"
+        filename = f"{constants.data_dir}/{constants.run_start_time_id}_{clz}_chat_log_fallback.csv"
         import pandas as pd
         ts = cur_simple_date_time_sec()
         df = pd.DataFrame({

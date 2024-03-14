@@ -80,8 +80,9 @@ def get_aim_callback_handler(exec_id, llm_options, query_engine_options, command
     return get_aim_callback(experiment_name, constants.aim_dir, aim_run_params)
 
 async def ask_question(query_engine: RetrieverQueryEngine, question: str):
+    question = question.strip()
     print(f"Finding an answer for question: {question}")
-    start_time = int(round(time.time() * 1000))
+    start_time_ms = int(round(time.time() * 1000))
     try:
         answer_full = await query_engine.aquery(question)
         # print(answer_full.source_nodes)
@@ -92,8 +93,7 @@ async def ask_question(query_engine: RetrieverQueryEngine, question: str):
         answer = f"An error occurred: {e}"
     if answer == "" or answer == None:
         answer = "No answer found."
-    end_time = int(round(time.time() * 1000))
-    duration_sec = (end_time - start_time) / 1000
+    duration_sec = (int(round(time.time() * 1000)) - start_time_ms) / 1000
     print(f"Q: {question}\nA: {answer}")
     print("\nAnswering took: " + str(duration_sec) + " sec\n")
     # print(f"  Source Nodes ({len(answer_full.source_nodes)}) :")
