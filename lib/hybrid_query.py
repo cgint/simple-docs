@@ -75,6 +75,8 @@ class PrintingPostProcessor(BaseNodePostprocessor):
             for n in nodes:
                 first_text_chars_one_line = n.node.text[:30].replace("\n", " ")
                 source_info = " - "+n.node.metadata['source_id'] if 'source_id' in n.node.metadata else ""
+                source_info += " - Page "+n.node.metadata['page_label'] if 'page_label' in n.node.metadata else ""
+                source_info += " - Chunk "+n.node.metadata['chunk'] if 'chunk' in n.node.metadata else ""
                 print(f"    {n.node.node_id} - {n.score} - {first_text_chars_one_line}{source_info}")
         return nodes
     
