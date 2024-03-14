@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 from lib.hybrid_query import get_hybrid_query_engine
 
 from lib.index.helper import cur_simple_date_time_sec
@@ -80,6 +81,7 @@ def get_aim_callback_handler(exec_id, llm_options, query_engine_options, command
 
 async def ask_question(query_engine: RetrieverQueryEngine, question: str):
     print(f"Finding an answer for question: {question}")
+    start_time = int(round(time.time() * 1000))
     try:
         answer_full = await query_engine.aquery(question)
         # print(answer_full.source_nodes)
@@ -90,8 +92,10 @@ async def ask_question(query_engine: RetrieverQueryEngine, question: str):
         answer = f"An error occurred: {e}"
     if answer == "" or answer == None:
         answer = "No answer found."
+    end_time = int(round(time.time() * 1000))
+    duration_sec = (end_time - start_time) / 1000
     print(f"Q: {question}\nA: {answer}")
-    print("\n")
+    print("\nAnswering took: " + str(duration_sec) + " sec\n")
     # print(f"  Source Nodes ({len(answer_full.source_nodes)}) :")
     # for n in answer_full.source_nodes:
     #     first_text_chars = n.node.text[:30]
