@@ -4,6 +4,7 @@ from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.schema import NodeWithScore
 from llama_index.core import QueryBundle
 from llama_index.core.retrievers import BaseRetriever
+from llama_index.core.response_synthesizers import ResponseMode
 import concurrent.futures
 
 from lib.index.doc_sum_index import load_doc_sum_index
@@ -223,12 +224,20 @@ def get_hybrid_query_engine(query_engine_options) -> RetrieverQueryEngine:
         qe = RetrieverQueryEngine.from_args(
             retriever=HybridRetriever(retrievers),
             node_postprocessors=post_processors,
-            response_mode=ResponseMode.REFINE,
+            response_mode=get_response_mode(constants.retriever_query_engine_response_mode),
             use_async=True
         )
-        qe = wrap_in_sub_question_engine(qe)
+        if constants.wrap_in_sub_question_engine:
+            qe = wrap_in_sub_question_engine(qe)
         cached_hybrid_retriever_engine[engine_cache_key] = qe
     return cached_hybrid_retriever_engine[engine_cache_key]
+
+def get_response_mode(response_mode_str: str) -> ResponseMode:
+    """Returns the response mode for the given string."""
+    for mode in ResponseMode:
+        if mode.name == response_mode_str:
+            return mode
+    raise ValueError(f"Invalid response mode: {response_mode_str}")
 
 def wrap_in_sub_question_engine(query_engine: RetrieverQueryEngine) -> RetrieverQueryEngine:
     """Wraps the given query engine in a sub question engine."""

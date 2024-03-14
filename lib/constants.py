@@ -5,6 +5,8 @@ run_start_time_id = cur_simple_date_time_sec()
 
 host_ip = os.getenv("HOST_IP", "host.docker.internal")
 host_ip_ollama = os.getenv("HOST_IP_OLLAMA", host_ip)
+retriever_query_engine_response_mode = os.getenv("RETRIEVER_QUERY_ENGINE_RESPONSE_MODE", "TREE_SUMMARIZE")
+wrap_in_sub_question_engine = os.getenv("WRAP_IN_SUB_QUESTION_ENGINE", "false").lower() == "true"
 guidance_gpt_version = os.getenv("GUIDANCE_GPT_VERSION", "gpt-4-0125-preview") # "gpt-3.5-turbo"
 del_indices_all = os.getenv("DEL_INDICES_ALL", False)
 max_files_to_index_per_run = int(os.getenv("MAX_FILES_INDEX_PER_RUN", 2000000)) # None for no limit
@@ -25,3 +27,4 @@ collection = vector_storage_dir.replace("/", "_").replace("_", "").replace(".", 
 doc_sum_index_dir = data_dir + "/doc_sum_index"
 kg_graph_index_dir = data_dir + "/kg_graph_index"
 aim_dir = data_dir + "/aim"
+aim_enabled = os.getenv("AIM_ENABLED", "false").lower() == "true"

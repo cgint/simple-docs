@@ -116,7 +116,7 @@ def create_directories():
 async def main():
     create_directories()
     command, fixed_questions, llm_options, query_engine_options, indexing_engine_options = get_params_from_env()
-    if command != "index":
+    if constants.aim_enabled and command != "index":
         print(f"Setting callback handler for AIM as global handler ...")
         llama_index.global_handler = get_aim_callback_handler(exec_id, llm_options, query_engine_options, command, fixed_questions)
     init_service_context(llm_options)
@@ -148,7 +148,7 @@ async def main():
             if question == "end" or question == "e":
                 break
             await ask_question(query_engine, question)
-        print("\nBye.")
+        print("\n\nBye.\n")
 
 
 if __name__ == "__main__":

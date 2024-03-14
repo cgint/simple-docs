@@ -1,12 +1,12 @@
 import os
-from time import sleep
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Dict, Optional
 from llama_index.llms.openai_like import OpenAILike
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
 from llama_index.llms.groq import Groq
 from lib import constants
 from lib.index.helper import cur_simple_date_time_sec
+from lib.llm_fallback import MultiLlmFallback
 from lib.llm_round_robin import MultiOllamaRoundRobin
 
 def get_llm_multi(llm_urls, llm_engine, llm_model, temperature, openai_model = None):
@@ -23,13 +23,8 @@ def get_llm_multi(llm_urls, llm_engine, llm_model, temperature, openai_model = N
         ]
         return MultiOllamaRoundRobin(workers)
 
-def get_llm(llm_engine, llm_model, openai_model = None):
-    temperature = 0.1
-    if llm_engine == "together":
-        if openai_model is None:
-            raise Exception("openai_model must be set when using together.ai")
-        print(f"About to instanciate LLM {openai_model} using Together.ai ...")
-        return OpenAILike(
+def get_together(openai_model, temperature):
+     return OpenAILike(
             model=openai_model,
             api_base="https://api.together.xyz",
             api_key=os.getenv("TOGETHER_AI_KEY"),
@@ -40,6 +35,17 @@ def get_llm(llm_engine, llm_model, openai_model = None):
             timeout=120,
             temperature=temperature
         )
+
+def get_groq(llm_model):
+     return Groq(model=llm_model, api_key=os.environ.get("GROQ_API_KEY"))
+
+def get_llm(llm_engine, llm_model, openai_model = None):
+    temperature = 0.1
+    if llm_engine == "together":
+        if openai_model is None:
+            raise Exception("openai_model must be set when using together.ai")
+        print(f"About to instanciate LLM {openai_model} using Together.ai ...")
+        return get_together(openai_model, temperature)
     elif llm_engine == "openai":
         if openai_model is None:
             raise Exception("openai_model must be set when using OpenAI")
@@ -52,7 +58,13 @@ def get_llm(llm_engine, llm_model, openai_model = None):
         )
     elif llm_engine == "groq":
         print(f"About to instanciate LLM {openai_model} using Groq-Cloud ...")
-        return Groq(model=llm_model, api_key=os.environ.get("GROQ_API_KEY"))
+        return get_groq(llm_model)
+    elif llm_engine == "groq-together":
+        print(f"About to instanciate Groq with {llm_model} and as fallback Together with {openai_model} ...")
+        return MultiLlmFallback([
+             get_groq(llm_model),
+             get_together(openai_model, temperature)
+        ])
     elif llm_engine == "ollama-multi":
         llm_urls = [
             f"http://{constants.host_ip_ollama}:"+get_port_for_ollama_variant("ollama-gpu1"),
