@@ -159,7 +159,6 @@ def get_hybrid_query_engine(query_engine_options) -> RetrieverQueryEngine:
         print("Creating new hybrid query engine ...")
         from llama_index.core.postprocessor import SentenceTransformerRerank
         from llama_index.retrievers.bm25 import BM25Retriever
-        from llama_index.core.response_synthesizers import ResponseMode
         retriever_k = int(query_engine_options["retriever_k"])
         if "bm25" in variant or "docsum" in variant:
             doc_sum_index = load_doc_sum_index(query_engine_options["doc_sum_index_dir"])
@@ -196,9 +195,9 @@ def get_hybrid_query_engine(query_engine_options) -> RetrieverQueryEngine:
                 ]
         elif "query-wordmatch" == query_engine_options["reranker_model"]:
             post_processors = [
-                    PrintingPostProcessor(f"before QueryWordmatchReranker"), 
+                    PrintingPostProcessor("before QueryWordmatchReranker"), 
                     QueryWordmatchReranker(), 
-                    PrintingPostProcessor(f"after QueryWordmatchReranker", True)
+                    PrintingPostProcessor("after QueryWordmatchReranker", True)
                 ]
         elif "query-wordmatch-nodecount" == query_engine_options["reranker_model"]:
             post_processors = [

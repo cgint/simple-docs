@@ -31,7 +31,7 @@ class MultiLlmFallback(CustomLLM):
                 exceptions.append(e)
         
         
-        message = f" -- MultiLlmFallback --- --- --- --- --- --- --- --- --- --- -- Unsuccessful even with fallback --- --- --- -- --- --- ---"
+        message = " -- MultiLlmFallback --- --- --- --- --- --- --- --- --- --- -- Unsuccessful even with fallback --- --- --- -- --- --- ---"
         message += f" ### Exceptions: {exceptions}" if exceptions else ""
         raise Exception(message)
 

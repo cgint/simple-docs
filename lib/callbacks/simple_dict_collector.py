@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Optional, cast
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.core.callbacks import CBEventType, EventPayload
 
-from llama_index.core.callbacks import EventPayload
 from lib.index.helper import cur_simple_date_time_sec
 
 import pandas as pd

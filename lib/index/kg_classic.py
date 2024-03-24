@@ -20,7 +20,7 @@ def delete_kg_graph_index(kg_graph_storage_dir: str):
 
 def load_kg_graph_index(kg_graph_storage_dir: str) -> KnowledgeGraphIndex:
     if not os.path.exists(kg_graph_storage_dir):
-        print(f"About to initialize an empty kg-graph ...")
+        print("About to initialize an empty kg-graph ...")
         kg_graph = KnowledgeGraphIndex.from_documents(
             []
         )

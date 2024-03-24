@@ -29,7 +29,7 @@ def persist_vector_index(vector_index: VectorStoreIndex, vector_storage_dir: str
 
 def get_vector_index(vector_storage_dir: str) -> VectorStoreIndex:
     if not os.path.exists(vector_storage_dir):
-        print(f"About to initialize an empty vector-index ...")
+        print("About to initialize an empty vector-index ...")
         vector_index = VectorStoreIndex.from_documents(
             []
         )

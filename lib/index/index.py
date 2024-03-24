@@ -1,4 +1,6 @@
-from concurrent.futures import FIRST_COMPLETED, ALL_COMPLETED, ThreadPoolExecutor, wait
+from concurrent.futures import FIRST_COMPLETED, ALL_COMPLETED, ThreadPoolExecutor, wait, as_completed
+import queue
+import threading
 import os
 from time import sleep
 from lib.index.doc_sum_index import delete_doc_summary_index, get_doc_sum_index_doc_ids, operate_on_doc_sum_index, persist_index
@@ -17,8 +19,6 @@ from lib.vector_chroma import delete_chroma_collection, operate_on_vector_index
 from llama_index.core import Document, KnowledgeGraphIndex
 from typing import List, Set
 from lib import constants
-import queue
-import threading
 from tqdm import tqdm
 from llama_index.core.node_parser import SentenceSplitter
 
@@ -145,9 +145,6 @@ def try_refresh_ref_docs_retry_max(attempts, idx, doc):
             else:
                 raise e
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import queue
-import threading
 
 def index_consume_documents_threading_workers(log_name, q, ignore_source_keys: Set[str], persist=lambda: None, process=lambda x: None, max_threads=1, max_queued_tasks=5):
     counter = 0

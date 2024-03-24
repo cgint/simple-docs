@@ -5,7 +5,6 @@ from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
 from llama_index.llms.groq import Groq
 from lib import constants
-from lib.index.helper import cur_simple_date_time_sec
 from lib.llm_fallback import MultiLlmFallback
 from lib.llm_round_robin import MultiOllamaRoundRobin
 

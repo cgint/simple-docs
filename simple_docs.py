@@ -120,7 +120,7 @@ async def main():
         print("Setting callback handler for AIM as global handler ...")
         llama_index.global_handler = get_aim_callback_handler(exec_id, llm_options, query_engine_options, command, fixed_questions)
     init_service_context(llm_options)
-    print(f"Service Context created ...")
+    print("Service Context created ...")
     if command != "index":
         print(f"Creating a query engine according to {query_engine_options} ...")
         query_engine_options['doc_sum_index_dir'] = constants.doc_sum_index_dir
