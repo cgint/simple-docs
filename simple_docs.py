@@ -68,7 +68,7 @@ def get_params_from_env():
     return command, fixed_questions, llm_options, query_engine_options, indexing_engine_options
 
 def get_aim_callback_handler(exec_id, llm_options, query_engine_options, command, question_info = None):
-    experiment_name = f"{llm_options['engine']}_{llm_options['model']}" + (f"_{llm_options['openai_model']}" if llm_options['openai_model'] is not None else "")
+    experiment_name = f"{llm_options['engine']}_{llm_options['model']}" + (f"_{llm_options['openai_model']}" if llm_options['openai_model'] else "")
     aim_run_params = { 
         'exec_id': exec_id,
         'query_engine_options': query_engine_options, 
@@ -117,7 +117,7 @@ async def main():
     create_directories()
     command, fixed_questions, llm_options, query_engine_options, indexing_engine_options = get_params_from_env()
     if constants.aim_enabled and command != "index":
-        print(f"Setting callback handler for AIM as global handler ...")
+        print("Setting callback handler for AIM as global handler ...")
         llama_index.global_handler = get_aim_callback_handler(exec_id, llm_options, query_engine_options, command, fixed_questions)
     init_service_context(llm_options)
     print(f"Service Context created ...")
