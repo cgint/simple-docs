@@ -4,6 +4,7 @@ from llama_index.llms.openai_like import OpenAILike
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
 from llama_index.llms.groq import Groq
+from llama_index.llms.gemini import Gemini
 from lib import constants
 from lib.llm_fallback import MultiLlmFallback
 from lib.llm_round_robin import MultiOllamaRoundRobin
@@ -21,6 +22,9 @@ def get_llm_multi(llm_urls, llm_engine, llm_model, temperature, openai_model = N
             for llm_url in llm_urls
         ]
         return MultiOllamaRoundRobin(workers)
+
+def get_gemini(llm_model):
+    return Gemini(model_name=llm_model, api_key=os.environ.get("GEMINI_API_KEY"))
 
 def get_together(openai_model, temperature):
      return OpenAILike(
@@ -40,7 +44,10 @@ def get_groq(llm_model):
 
 def get_llm(llm_engine, llm_model, openai_model = None):
     temperature = 0.1
-    if llm_engine == "together":
+    if llm_engine == "gemini":
+        print(f"About to instanciate LLM {llm_model} using Gemini ...")
+        return get_gemini(llm_model)
+    elif llm_engine == "together":
         if openai_model is None:
             raise Exception("openai_model must be set when using together.ai")
         print(f"About to instanciate LLM {openai_model} using Together.ai ...")

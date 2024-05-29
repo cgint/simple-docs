@@ -20,12 +20,14 @@ fi
 #  LLM_ENGINE=ollama-multi HOST_IP_OLLAMA=192.168.0.99 LLM_MODEL=neural-chat \
 #  LLM_ENGINE=groq LLM_MODEL=mixtral-8x7b-32768 \
 #  LLM_ENGINE=ollama-multi-local-4 LLM_MODEL=neural-chat \
+#  LLM_ENGINE=together LLM_MODEL=mistral-together OPENAI_MODEL=mistralai/Mistral-7B-Instruct-v0.2 \
+#  LLM_ENGINE=ollama LLM_MODEL=mistral HOST_IP_OLLAMA=localhost \
 # INDEXING_ENGINE_VARIANT==vector-graph-term-kggraph-docsum
 
 time PARAM_COMMAND=index INDEXING_ENGINE_VARIANT==vector-graph-term-kggraph-docsum HOST_IP=$HOST_IP_ADDR \
  DATA_PLAYGROUND=$PLAYGROUND \
  RERANKER_MODEL=BAAI/bge-reranker-base RERANKER_K=5 \
- LLM_ENGINE=together LLM_MODEL=mistral-together OPENAI_MODEL=mistralai/Mistral-7B-Instruct-v0.2 \
+ LLM_ENGINE=gemini LLM_MODEL=models/gemini-1.5-flash-latest \
  DATA_DIR=./data \
  TOKENIZERS_PARALLELISM=true \
  DEL_INDICES_ALL=true \
