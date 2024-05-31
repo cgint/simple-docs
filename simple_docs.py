@@ -32,6 +32,8 @@ from llama_index.core.query_engine import RetrieverQueryEngine
 
 exec_id = "ExecID: " + cur_simple_date_time_sec()
 
+from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
+token_counter = TokenCountingHandler(verbose=True)
 def init_service_context(llm_options, callback_handler = None):
     if callback_handler is not None:
         llama_index.global_handler = callback_handler
@@ -40,6 +42,8 @@ def init_service_context(llm_options, callback_handler = None):
     Settings.llm = llm
     Settings.embed_model = embed
     Settings.chunk_size = 1024
+    callback_manager = CallbackManager([token_counter])
+    Settings.callback_manager = callback_manager
 
 def get_params_from_env():
     command = os.environ.get("PARAM_COMMAND", "")
@@ -96,6 +100,8 @@ async def ask_question(query_engine: RetrieverQueryEngine, question: str):
     duration_sec = (int(round(time.time() * 1000)) - start_time_ms) / 1000
     print(f"Q: {question}\nA: {answer}")
     print("\nAnswering took: " + str(duration_sec) + " sec\n")
+    print(f"Tokens used: Total={token_counter.total_llm_token_count}, Prompt={token_counter.prompt_llm_token_count}, Completion={token_counter.completion_llm_token_count}, Embedding={token_counter.total_embedding_token_count}")
+    token_counter.reset_counts()
     # print(f"  Source Nodes ({len(answer_full.source_nodes)}) :")
     # for n in answer_full.source_nodes:
     #     first_text_chars = n.node.text[:30]
@@ -136,6 +142,7 @@ async def main():
         indexing_engine_options['graph_db'] = constants.graph_db
         indexing_engine_options['kg_graph_index_dir'] = constants.kg_graph_index_dir
         index(indexing_engine_options, constants.index_dir, constants.index_dir_done)
+        print(f"Tokens used: Total={token_counter.total_llm_token_count}, Prompt={token_counter.prompt_llm_token_count}, Completion={token_counter.completion_llm_token_count}, Embedding={token_counter.total_embedding_token_count}")
     elif fixed_questions is not None and fixed_questions != "":
         fixed_questions = fixed_questions.split("###")
         for question in fixed_questions:
