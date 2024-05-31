@@ -54,7 +54,7 @@ def get_together(openai_model, temperature):
      return OpenAILike(
             model=openai_model,
             api_base="https://api.together.xyz",
-            api_key=os.getenv("TOGETHER_AI_KEY"),
+            api_key=os.getenv("TOGETHER_API_KEY"),
             is_chat_model=True,
             is_function_calling_model=True,
             reuse_client=False, # When doing anything with large volumes of async API calls, setting this to false can improve stability.",
