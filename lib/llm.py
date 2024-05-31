@@ -22,9 +22,33 @@ def get_llm_multi(llm_urls, llm_engine, llm_model, temperature, openai_model = N
             for llm_url in llm_urls
         ]
         return MultiOllamaRoundRobin(workers)
-
-def get_gemini(llm_model):
-    return Gemini(model_name=llm_model, api_key=os.environ.get("GEMINI_API_KEY"))
+safety_settings = [
+  {
+    "category": "HARM_CATEGORY_HARASSMENT",
+    "threshold": "BLOCK_ONLY_HIGH",
+  },
+  {
+    "category": "HARM_CATEGORY_HATE_SPEECH",
+    "threshold": "BLOCK_ONLY_HIGH",
+  },
+  {
+    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+    "threshold": "BLOCK_ONLY_HIGH",
+  },
+  {
+    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+    "threshold": "BLOCK_ONLY_HIGH",
+  }
+]
+def get_gemini(llm_model, temperature):
+    generation_config = {
+        "temperature": temperature,
+        "top_p": 0.95,
+        "top_k": 64,
+        "max_output_tokens": 16000,
+        "response_mime_type": "text/plain"
+    }
+    return Gemini(model_name=llm_model, generation_config=generation_config, safety_settings=safety_settings, api_key=os.environ.get("GEMINI_API_KEY"))
 
 def get_together(openai_model, temperature):
      return OpenAILike(
@@ -46,7 +70,7 @@ def get_llm(llm_engine, llm_model, openai_model = None):
     temperature = 0.1
     if llm_engine == "gemini":
         print(f"About to instanciate LLM {llm_model} using Gemini ...")
-        return get_gemini(llm_model)
+        return get_gemini(llm_model, temperature)
     elif llm_engine == "together":
         if openai_model is None:
             raise Exception("openai_model must be set when using together.ai")
