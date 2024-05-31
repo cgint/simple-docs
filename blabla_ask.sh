@@ -23,13 +23,13 @@ fi
 #  LLM_ENGINE=together LLM_MODEL=mistral-together OPENAI_MODEL=mistralai/Mistral-7B-Instruct-v0.2 \
 #  LLM_ENGINE=groq-together LLM_MODEL=mixtral-8x7b-32768 OPENAI_MODEL=mistralai/Mixtral-8x7B-Instruct-v0.1 \
 #  LLM_ENGINE=groq LLM_MODEL=mixtral-8x7b-32768 \
-#  LLM_ENGINE=ollama LLM_MODEL=mistral HOST_IP_OLLAMA=localhost \
+#  LLM_ENGINE=gemini LLM_MODEL=models/gemini-1.5-flash-latest \
 # QUERY_ENGINE_VARIANT=vector-graph-term-kggraph-docsum-bm25
 
 PARAM_COMMAND=ask QUERY_ENGINE_VARIANT=vector-graph-term-kggraph-docsum-bm25 HOST_IP=$HOST_IP_ADDR \
  DATA_PLAYGROUND=$PLAYGROUND \
  RERANKER_MODEL=BAAI/bge-reranker-base RETRIEVER_K=30 RERANKER_K=100 \
- LLM_ENGINE=gemini LLM_MODEL=models/gemini-1.5-flash-latest \
+ LLM_ENGINE=ollama LLM_MODEL=llama3 HOST_IP_OLLAMA=localhost \
  WRAP_IN_SUB_QUESTION_ENGINE=false \
  TOKENIZERS_PARALLELISM=true \
  DATA_DIR=./data \
